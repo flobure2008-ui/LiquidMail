@@ -216,7 +216,6 @@ public struct LiquidMailWidgetEntryView: View {
 }
 
 // MARK: - Widget Definition
-@main
 public struct LiquidMailWidgetBundle: WidgetBundle {
     public init() {}
     

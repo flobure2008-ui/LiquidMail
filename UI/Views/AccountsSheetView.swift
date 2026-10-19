@@ -185,7 +185,7 @@ public struct AddAccountView: View {
                                     .textContentType(.emailAddress)
                                     .keyboardType(.emailAddress)
                                     .autocapitalization(.none)
-                                    .onChange(of: emailAddress) { newVal in
+                                    .onChange(of: emailAddress) { _, newVal in
                                         autoDetect(newVal)
                                     }
                             }
