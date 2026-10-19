@@ -86,7 +86,7 @@ public struct AIAssistantView: View {
                             }
                             .padding(.top, 10)
                         }
-                        .onChange(of: messages.count) { _, _ in
+                        .onChange(of: messages.count) { _ in
                             withAnimation {
                                 proxy.scrollTo("bottomAnchor", anchor: .bottom)
                             }

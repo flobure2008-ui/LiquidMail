@@ -156,13 +156,15 @@ public struct AccountsSheetView: View {
                         .foregroundColor(.cyan)
                 }
             }
-            .alert("Supprimer le compte", isPresented: $showingDeleteAlert, presenting: accountToDelete) { acc in
+            .alert("Supprimer le compte", isPresented: $showingDeleteAlert) {
                 Button("Supprimer", role: .destructive) {
-                    mailStore.removeAccount(id: acc.id)
+                    if let acc = accountToDelete {
+                        mailStore.removeAccount(id: acc.id)
+                    }
                 }
                 Button("Annuler", role: .cancel) {}
-            } message: { acc in
-                Text("Voulez-vous supprimer le compte \(acc.emailAddress) et ses e-mails associés de LiquidMail ?")
+            } message: {
+                Text("Voulez-vous supprimer ce compte et ses e-mails associés de LiquidMail ?")
             }
             .sheet(isPresented: $showingAddAccountModal) {
                 AddAccountView()
@@ -230,7 +232,7 @@ public struct AddAccountView: View {
                                         .keyboardType(.emailAddress)
                                         .autocapitalization(.none)
                                         .disableAutocorrection(true)
-                                        .onChange(of: emailAddress) { _, newVal in
+                                        .onChange(of: emailAddress) { newVal in
                                             autoDetect(newVal)
                                         }
                                 }
@@ -405,10 +407,22 @@ public struct AddAccountView: View {
     }
     
     // MARK: - Contextual Provider Security Banner
+    private var isGmailAccount: Bool {
+        emailAddress.lowercased().contains("gmail.com")
+    }
+    
+    private var isAppleAccount: Bool {
+        let lower = emailAddress.lowercased()
+        return lower.contains("icloud.com") || lower.contains("me.com")
+    }
+    
+    private var isYahooAccount: Bool {
+        emailAddress.lowercased().contains("yahoo.")
+    }
+    
     @ViewBuilder
     private var providerSecurityBanner: some View {
-        let lower = emailAddress.lowercased()
-        if lower.contains("gmail.com") {
+        if isGmailAccount {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -424,7 +438,7 @@ public struct AddAccountView: View {
             }
             .padding(12)
             .liquidGlass(cornerRadius: 14, borderOpacity: 0.35, glowColor: .orange)
-        } else if lower.contains("icloud.com") || lower.contains("me.com") {
+        } else if isAppleAccount {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "applelogo")
@@ -440,7 +454,7 @@ public struct AddAccountView: View {
             }
             .padding(12)
             .liquidGlass(cornerRadius: 14, borderOpacity: 0.35, glowColor: .cyan)
-        } else if lower.contains("yahoo.") {
+        } else if isYahooAccount {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
