@@ -12,7 +12,6 @@ public struct InboxView: View {
     public var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                // Background
                 LiquidAmbientBackground(theme: mailStore.glassTheme)
                 
                 if mailStore.accounts.isEmpty {
@@ -22,13 +21,12 @@ public struct InboxView: View {
                         
                         ZStack {
                             Circle()
-                                .fill(LinearGradient(colors: [.cyan.opacity(0.3), .purple.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .frame(width: 110, height: 110)
-                                .blur(radius: 12)
+                                .fill(LinearGradient(colors: [.cyan.opacity(0.25), .purple.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .frame(width: 100, height: 100)
                             
                             Image(systemName: "envelope.fill")
-                                .font(.system(size: 48, weight: .semibold))
-                                .foregroundStyle(LinearGradient(colors: [.white, .cyan], startPoint: .top, endPoint: .bottom))
+                                .font(.system(size: 42, weight: .semibold))
+                                .foregroundColor(.cyan)
                         }
                         
                         VStack(spacing: 8) {
@@ -36,7 +34,7 @@ public struct InboxView: View {
                                 .font(.system(size: 24, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                             
-                            Text("Connectez votre boîte e-mail personnelle ou professionnelle pour activer le triage intelligent par IA.")
+                            Text("Connectez votre boîte de messagerie pour activer le triage intelligent par IA et les résumés automatiques.")
                                 .font(.system(size: 14))
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -44,15 +42,14 @@ public struct InboxView: View {
                                 .lineSpacing(3)
                         }
                         
-                        // Feature bullets
                         VStack(alignment: .leading, spacing: 14) {
                             FeatureRow(icon: "network", title: "Tous fournisseurs supportés", subtitle: "iCloud, Gmail, Yahoo, Infomaniak, Orange, Free, IMAP...")
-                            FeatureRow(icon: "sparkles", title: "Triage & Résumés IA", subtitle: "Classement en Urgent, Factures, VIP et réponses rapides")
-                            FeatureRow(icon: "lock.shield.fill", title: "Chiffrement Keychain", subtitle: "Identifiants stockés dans le Trousseau sécurisé Apple")
+                            FeatureRow(icon: "sparkles", title: "Triage & Résumés IA", subtitle: "Catégorisation automatique et extraction d'actions")
+                            FeatureRow(icon: "lock.shield.fill", title: "Chiffrement Keychain", subtitle: "Identifiants protégés par le Trousseau Apple")
                         }
-                        .padding(20)
-                        .liquidGlass(cornerRadius: 20, borderOpacity: 0.25)
-                        .padding(.horizontal, 24)
+                        .padding(18)
+                        .liquidGlass(cornerRadius: 18, borderOpacity: 0.20)
+                        .padding(.horizontal, 20)
                         
                         Spacer()
                         
@@ -73,16 +70,15 @@ public struct InboxView: View {
                             )
                             .cornerRadius(18)
                             .foregroundColor(.white)
-                            .shadow(color: Color.cyan.opacity(0.35), radius: 10, y: 5)
                         }
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 24)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 30)
                     }
                 } else {
-                    // MARK: - Standard Apple Mail Interface with Liquid Glass
+                    // MARK: - Native Apple Mail Inbox View
                     VStack(spacing: 0) {
                         
-                        // Category pills
+                        // Category Pills
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(AICategory.allCases) { cat in
@@ -100,17 +96,16 @@ public struct InboxView: View {
                             .padding(.vertical, 8)
                         }
                         
-                        // Email List
                         if displayedEmails.isEmpty {
-                            VStack(spacing: 14) {
+                            VStack(spacing: 12) {
                                 Spacer()
                                 Image(systemName: "tray")
-                                    .font(.system(size: 44, weight: .light))
+                                    .font(.system(size: 40, weight: .light))
                                     .foregroundColor(.secondary.opacity(0.6))
                                 Text("Aucun message")
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(.secondary)
-                                Text("Votre boîte de réception est à jour.")
+                                Text("Tirez vers le bas pour actualiser.")
                                     .font(.system(size: 13))
                                     .foregroundColor(.secondary.opacity(0.8))
                                 Spacer()
@@ -163,49 +158,6 @@ public struct InboxView: View {
                                 await mailStore.refreshInbox()
                             }
                         }
-                        
-                        // MARK: - Native Apple Mail Bottom Toolbar
-                        HStack {
-                            Button(action: {
-                                Haptics.light()
-                                filterUnreadOnly.toggle()
-                            }) {
-                                Image(systemName: filterUnreadOnly ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(filterUnreadOnly ? .cyan : .secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            VStack(spacing: 1) {
-                                Text(mailStore.isSyncing ? "Synchronisation..." : "Mis à jour à l'instant")
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(.secondary)
-                                Text("\(displayedEmails.count) message\(displayedEmails.count > 1 ? "s" : "")")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary.opacity(0.8))
-                            }
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                Haptics.medium()
-                                showingCompose = true
-                            }) {
-                                Image(systemName: "square.and.pencil")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundColor(.cyan)
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(.ultraThinMaterial)
-                        .overlay(
-                            Rectangle()
-                                .frame(height: 0.5)
-                                .foregroundColor(Color.white.opacity(0.15)),
-                            alignment: .top
-                        )
                     }
                 }
                 
@@ -232,23 +184,44 @@ public struct InboxView: View {
                         }
                     }
                     .padding(12)
-                    .liquidGlass(cornerRadius: 18, borderOpacity: 0.5, glowColor: .cyan)
+                    .liquidGlass(cornerRadius: 16, borderOpacity: 0.4, glowColor: .cyan)
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 60)
+                    .padding(.bottom, 16)
                 }
             }
             .navigationTitle(mailStore.selectedAccount?.name ?? "Boîte de réception")
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $mailStore.searchText, prompt: "Rechercher...")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         Haptics.light()
                         showingAccountSheet = true
                     }) {
                         HStack(spacing: 6) {
-                            Image(systemName: "person.crop.circle")
-                                .font(.system(size: 18))
+                            Image(systemName: "tray.2")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.cyan)
+                        }
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 14) {
+                        Button(action: {
+                            filterUnreadOnly.toggle()
+                        }) {
+                            Image(systemName: filterUnreadOnly ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                                .font(.system(size: 16))
+                                .foregroundColor(filterUnreadOnly ? .cyan : .secondary)
+                        }
+                        
+                        Button(action: {
+                            Haptics.medium()
+                            showingCompose = true
+                        }) {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 17, weight: .semibold))
                                 .foregroundColor(.cyan)
                         }
                     }
@@ -278,22 +251,21 @@ public struct InboxView: View {
     }
 }
 
-// MARK: - Standard Apple Mail Row Component with Liquid Glass Touch
+// MARK: - Clean Apple Mail Row Component
 public struct StandardMailRow: View {
     public let email: EmailMessage
     
     public var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Unread Blue Dot Indicator
+        HStack(alignment: .top, spacing: 10) {
             Circle()
                 .fill(email.isRead ? Color.clear : Color.cyan)
                 .frame(width: 8, height: 8)
                 .padding(.top, 6)
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 HStack {
                     Text(email.senderName)
-                        .font(.system(size: 15, weight: email.isRead ? .medium : .bold))
+                        .font(.system(size: 15, weight: email.isRead ? .regular : .bold))
                         .foregroundColor(.primary)
                         .lineLimit(1)
                     
@@ -315,61 +287,19 @@ public struct StandardMailRow: View {
                     .lineLimit(2)
                     .lineSpacing(2)
                 
-                // Subtle badges row
-                HStack(spacing: 6) {
-                    if email.category != .all && email.category != .vip {
-                        Text(email.category.rawValue)
-                            .font(.system(size: 10, weight: .semibold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(email.category.badgeColor.opacity(0.18)))
-                            .foregroundColor(email.category.badgeColor)
-                    }
-                    
-                    if !email.attachments.isEmpty {
-                        Image(systemName: "paperclip")
-                            .font(.system(size: 10))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    if email.isStarred {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.yellow)
-                    }
-                    Spacer()
+                if email.category != .all && email.category != .vip {
+                    Text(email.category.rawValue)
+                        .font(.system(size: 10, weight: .semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(email.category.badgeColor.opacity(0.18)))
+                        .foregroundColor(email.category.badgeColor)
+                        .padding(.top, 2)
                 }
-                .padding(.top, 2)
             }
         }
-        .padding(14)
-        .liquidGlass(cornerRadius: 16, borderOpacity: email.isRead ? 0.15 : 0.35, glowColor: email.isRead ? .white : .cyan)
-    }
-}
-
-// MARK: - Feature Bullet Row for Onboarding
-struct FeatureRow: View {
-    var icon: String
-    var title: String
-    var subtitle: String
-    
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle().fill(Color.cyan.opacity(0.18)).frame(width: 36, height: 36)
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.cyan)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
-                Text(subtitle)
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .liquidGlass(cornerRadius: 14, borderOpacity: email.isRead ? 0.10 : 0.25, glowColor: email.isRead ? .white : .cyan)
     }
 }

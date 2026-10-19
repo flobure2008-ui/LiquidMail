@@ -16,6 +16,7 @@
 		A007 /* MailAutoDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = B007 /* MailAutoDiscovery.swift */; };
 		A008 /* KeychainManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B008 /* KeychainManager.swift */; };
 		A009 /* AIProviderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B009 /* AIProviderService.swift */; };
+		A020 /* RealIMAPService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B022 /* RealIMAPService.swift */; };
 		A010 /* GlassComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B010 /* GlassComponents.swift */; };
 		A011 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B011 /* InboxView.swift */; };
 		A012 /* EmailDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B012 /* EmailDetailView.swift */; };
@@ -38,6 +39,7 @@
 		B007 /* MailAutoDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/MailAutoDiscovery.swift; sourceTree = "<group>"; };
 		B008 /* KeychainManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/KeychainManager.swift; sourceTree = "<group>"; };
 		B009 /* AIProviderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/AIProviderService.swift; sourceTree = "<group>"; };
+		B022 /* RealIMAPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/RealIMAPService.swift; sourceTree = "<group>"; };
 		B010 /* GlassComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/Components/GlassComponents.swift; sourceTree = "<group>"; };
 		B011 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/Views/InboxView.swift; sourceTree = "<group>"; };
 		B012 /* EmailDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UI/Views/EmailDetailView.swift; sourceTree = "<group>"; };
@@ -96,6 +98,7 @@
 				B007 /* MailAutoDiscovery.swift */,
 				B008 /* KeychainManager.swift */,
 				B009 /* AIProviderService.swift */,
+				B022 /* RealIMAPService.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -206,6 +209,7 @@
 				A007 /* MailAutoDiscovery.swift in Sources */,
 				A008 /* KeychainManager.swift in Sources */,
 				A009 /* AIProviderService.swift in Sources */,
+				A020 /* RealIMAPService.swift in Sources */,
 				A010 /* GlassComponents.swift in Sources */,
 				A011 /* InboxView.swift in Sources */,
 				A012 /* EmailDetailView.swift in Sources */,

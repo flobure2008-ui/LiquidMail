@@ -37,6 +37,25 @@
             overflow-x: hidden;
         }
 
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+                margin: 0;
+                background: #000;
+                display: block;
+            }
+            .widgets-panel {
+                display: none !important;
+            }
+            .iphone-frame {
+                width: 100vw !important;
+                height: 100vh !important;
+                border-radius: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+        }
+
         /* Ambient Glowing Background Orbs */
         .ambient-mesh {
             position: fixed;
