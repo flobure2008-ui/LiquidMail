@@ -303,3 +303,36 @@ public struct StandardMailRow: View {
         .liquidGlass(cornerRadius: 14, borderOpacity: email.isRead ? 0.10 : 0.25, glowColor: email.isRead ? .white : .cyan)
     }
 }
+
+// MARK: - Feature Bullet Row for Onboarding
+public struct FeatureRow: View {
+    var icon: String
+    var title: String
+    var subtitle: String
+    
+    public init(icon: String, title: String, subtitle: String) {
+        self.icon = icon
+        self.title = title
+        self.subtitle = subtitle
+    }
+    
+    public var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(Color.cyan.opacity(0.18)).frame(width: 36, height: 36)
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.cyan)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+    }
+}

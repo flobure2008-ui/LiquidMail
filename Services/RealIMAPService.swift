@@ -172,7 +172,7 @@ public class RealIMAPService {
         for chunk in chunks where chunk.contains("FETCH") {
             var subject = "Sans objet"
             var sender = "Expéditeur inconnu"
-            var date = Date()
+            let date = Date()
             
             let lines = chunk.components(separatedBy: "\n")
             for line in lines {
