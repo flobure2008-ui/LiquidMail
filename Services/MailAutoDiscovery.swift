@@ -10,14 +10,6 @@ public struct ServerConfig: Codable, Hashable {
     public var smtpPort: Int
     public var smtpUseSSL: Bool
     
-    public var useSSL: Bool {
-        get { imapUseSSL }
-        set { 
-            imapUseSSL = newValue
-            smtpUseSSL = newValue
-        }
-    }
-    
     public init(
         imapHost: String,
         imapPort: Int = 993,
@@ -32,21 +24,6 @@ public struct ServerConfig: Codable, Hashable {
         self.smtpHost = smtpHost
         self.smtpPort = smtpPort
         self.smtpUseSSL = smtpUseSSL
-    }
-    
-    public init(
-        imapHost: String,
-        imapPort: Int = 993,
-        smtpHost: String,
-        smtpPort: Int = 587,
-        useSSL: Bool = true
-    ) {
-        self.imapHost = imapHost
-        self.imapPort = imapPort
-        self.imapUseSSL = useSSL
-        self.smtpHost = smtpHost
-        self.smtpPort = smtpPort
-        self.smtpUseSSL = useSSL
     }
 }
 
