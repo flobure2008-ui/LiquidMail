@@ -82,6 +82,7 @@ public struct EmailAccount: Identifiable, Codable, Hashable {
     public var lastSyncDate: Date
     public var avatarInitials: String
     public var isOAuthSupported: Bool
+    public var serverConfig: ServerConfig?
     
     public init(
         id: UUID = UUID(),
@@ -92,7 +93,8 @@ public struct EmailAccount: Identifiable, Codable, Hashable {
         unreadCount: Int = 0,
         lastSyncDate: Date = Date(),
         avatarInitials: String? = nil,
-        isOAuthSupported: Bool = true
+        isOAuthSupported: Bool = true,
+        serverConfig: ServerConfig? = nil
     ) {
         self.id = id
         self.name = name
@@ -102,6 +104,7 @@ public struct EmailAccount: Identifiable, Codable, Hashable {
         self.unreadCount = unreadCount
         self.lastSyncDate = lastSyncDate
         self.isOAuthSupported = isOAuthSupported
+        self.serverConfig = serverConfig
         
         if let initials = avatarInitials {
             self.avatarInitials = initials

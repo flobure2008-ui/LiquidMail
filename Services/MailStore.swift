@@ -219,8 +219,39 @@ public class MailStore: ObservableObject {
     // MARK: - Synchronize Mail
     public func refreshInbox() async {
         await MainActor.run { isSyncing = true }
-        try? await Task.sleep(nanoseconds: 800_000_000)
-        await MainActor.run { isSyncing = false }
+        
+        for account in accounts {
+            guard account.isActive else { continue }
+            guard let password = KeychainManager.shared.retrieve(key: "account_pwd_\(account.emailAddress)") else { continue }
+            
+            let config = account.serverConfig ?? MailAutoDiscovery.shared.discover(email: account.emailAddress)
+            if let fetchedMessages = try? await RealIMAPService.shared.authenticateAndFetch(
+                email: account.emailAddress,
+                password: password,
+                serverConfig: config
+            ) {
+                await MainActor.run {
+                    for msg in fetchedMessages {
+                        // Avoid duplicates
+                        if !self.emails.contains(where: { $0.subject == msg.subject && $0.senderEmail == msg.senderEmail }) {
+                            var modMsg = msg
+                            modMsg.accountId = account.id
+                            self.emails.insert(modMsg, at: 0)
+                        }
+                    }
+                    if let idx = self.accounts.firstIndex(where: { $0.id == account.id }) {
+                        self.accounts[idx].lastSyncDate = Date()
+                        self.accounts[idx].unreadCount = self.emails.filter { $0.accountId == account.id && !$0.isRead }.count
+                    }
+                }
+            }
+        }
+        
+        await MainActor.run {
+            persistAccounts()
+            persistEmails()
+            isSyncing = false
+        }
         Haptics.light()
     }
 }

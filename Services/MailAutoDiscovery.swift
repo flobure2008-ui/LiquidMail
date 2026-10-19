@@ -10,13 +10,16 @@ public struct ServerConfig: Codable, Hashable {
     public var smtpPort: Int
     public var smtpUseSSL: Bool
     
+    public var username: String?
+    
     public init(
         imapHost: String,
         imapPort: Int = 993,
         imapUseSSL: Bool = true,
         smtpHost: String,
         smtpPort: Int = 587,
-        smtpUseSSL: Bool = true
+        smtpUseSSL: Bool = true,
+        username: String? = nil
     ) {
         self.imapHost = imapHost
         self.imapPort = imapPort
@@ -24,6 +27,14 @@ public struct ServerConfig: Codable, Hashable {
         self.smtpHost = smtpHost
         self.smtpPort = smtpPort
         self.smtpUseSSL = smtpUseSSL
+        self.username = username
+    }
+    
+    public func resolvedUsername(email: String) -> String {
+        if let u = username, !u.trimmingCharacters(in: .whitespaces).isEmpty {
+            return u.trimmingCharacters(in: .whitespaces)
+        }
+        return email.trimmingCharacters(in: .whitespaces)
     }
 }
 
