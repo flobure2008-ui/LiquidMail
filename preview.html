@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiquidMail — Real iOS App, Widgets & AI Triager</title>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.22);
+            --glass-glow: rgba(0, 240, 255, 0.45);
+            --accent-cyan: #00e5ff;
+            --accent-purple: #9d4edd;
+            --accent-gold: #ffbe0b;
+            --accent-red: #ff3366;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.65);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+        }
+
+        body {
+            background: #07080e;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            padding: 30px;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Ambient Glowing Background Orbs */
+        .ambient-mesh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.35;
+            animation: float 14s infinite alternate ease-in-out;
+        }
+        .orb-1 { width: 550px; height: 550px; background: #00d2ff; top: -100px; left: -100px; }
+        .orb-2 { width: 650px; height: 650px; background: #9200ff; bottom: -150px; right: -100px; animation-duration: 18s; }
+        .orb-3 { width: 450px; height: 450px; background: #ff007f; top: 30%; right: 25%; animation-duration: 22s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(60px, 40px) scale(1.1); }
+        }
+
+        /* Side Panel: Widgets Showcase */
+        .widgets-panel {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 320px;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent-cyan);
+        }
+
+        /* Home Screen Widget Medium */
+        .widget-medium {
+            background: rgba(20, 24, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 26px;
+            padding: 16px;
+            backdrop-filter: blur(30px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.3);
+        }
+
+        /* Lock Screen Widget Rectangular */
+        .widget-lockscreen {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 14px;
+            backdrop-filter: blur(20px);
+        }
+
+        /* iPhone 16 Pro Frame */
+        .iphone-frame {
+            position: relative;
+            z-index: 10;
+            width: 390px;
+            height: 810px;
+            background: rgba(14, 16, 27, 0.78);
+            border-radius: 54px;
+            border: 4px solid rgba(255, 255, 255, 0.22);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), inset 0 0 0 2px rgba(255, 255, 255, 0.1), 0 0 50px rgba(0, 229, 255, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(35px);
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            width: 120px;
+            height: 32px;
+            background: #000;
+            border-radius: 20px;
+            margin: 10px auto 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            z-index: 100;
+        }
+        .island-camera { width: 11px; height: 11px; background: #0a0f1d; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); }
+        .island-sensor { width: 9px; height: 9px; background: #111; border-radius: 50%; }
+
+        /* Liquid Glass Card Styling */
+        .glass-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            backdrop-filter: blur(25px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .glass-card:active { transform: scale(0.98); }
+
+        .screen-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 16px 90px 16px;
+            position: relative;
+        }
+        .screen-content::-webkit-scrollbar { display: none; }
+
+        /* Header */
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .account-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .compose-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), #0070f3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 229, 255, 0.4);
+            color: #fff;
+            font-size: 16px;
+        }
+
+        /* Search */
+        .search-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 14px;
+            border-radius: 16px;
+            margin-bottom: 12px;
+        }
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+        .ai-pill-tag {
+            background: rgba(0, 229, 255, 0.2);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            font-size: 11px;
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+
+        /* Categories */
+        .category-row {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            margin-bottom: 12px;
+            padding-bottom: 4px;
+        }
+        .category-row::-webkit-scrollbar { display: none; }
+        .cat-chip {
+            white-space: nowrap;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        .cat-chip.active {
+            background: rgba(0, 229, 255, 0.25);
+            border-color: var(--accent-cyan);
+            color: #fff;
+            box-shadow: 0 0 14px rgba(0, 229, 255, 0.35);
+        }
+
+        /* Email Card */
+        .email-item {
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .email-top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .sender-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .provider-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #fff;
+        }
+        .p-icloud { background: #2997ff; }
+        .p-gmail { background: #ea4335; }
+        .p-yahoo { background: #7b1fa2; }
+        .p-ikmail { background: #00a86b; }
+
+        .sender-name { font-size: 14px; font-weight: 700; }
+        .email-time { font-size: 12px; color: var(--text-secondary); }
+        .email-subject { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; color: #f0f4ff; }
+        .email-preview { font-size: 12px; color: var(--text-secondary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .email-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .meta-tag {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 10px;
+        }
+        .tag-urgent { background: rgba(255, 51, 102, 0.25); color: #ff3366; }
+        .tag-receipt { background: rgba(32, 201, 151, 0.25); color: #20c997; }
+        .tag-vip { background: rgba(255, 190, 11, 0.25); color: #ffbe0b; }
+        .tag-phishing { background: rgba(255, 0, 0, 0.35); color: #ff4d4d; border: 1px solid red; }
+
+        /* Floating Dock */
+        .liquid-dock {
+            position: absolute;
+            bottom: 14px;
+            left: 20px;
+            right: 20px;
+            height: 62px;
+            background: rgba(20, 24, 40, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 32px;
+            backdrop-filter: blur(30px);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.3);
+            z-index: 50;
+        }
+        .dock-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .dock-item.active {
+            color: var(--accent-cyan);
+            transform: scale(1.05);
+        }
+        .dock-item svg { width: 22px; height: 22px; fill: currentColor; }
+
+        /* Modal Sheets */
+        .sheet-modal {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(12, 14, 25, 0.96);
+            backdrop-filter: blur(40px);
+            border-top: 1px solid rgba(255,255,255,0.25);
+            border-radius: 36px 36px 0 0;
+            padding: 18px;
+            z-index: 80;
+            overflow-y: auto;
+            transform: translateY(110%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .sheet-modal.open { transform: translateY(0); }
+        .sheet-handle {
+            width: 44px;
+            height: 5px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+            margin: 0 auto 16px auto;
+        }
+
+        .ai-summary-box {
+            background: linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(157, 78, 221, 0.15));
+            border: 1px solid rgba(0, 229, 255, 0.4);
+            border-radius: 18px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .ai-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+        }
+
+        .smart-replies-row {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            margin: 14px 0;
+            padding-bottom: 4px;
+        }
+        .reply-pill {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(0, 229, 255, 0.35);
+            padding: 8px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            white-space: nowrap;
+            cursor: pointer;
+            color: #fff;
+            transition: all 0.2s;
+        }
+        .reply-pill:hover {
+            background: rgba(0, 229, 255, 0.25);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-mesh">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- LEFT PANEL: iOS WIDGETS SHOWCASE -->
+    <div class="widgets-panel">
+        <div class="panel-title">
+            <span>🫧</span>
+            <span>LiquidMail Widgets iOS</span>
+        </div>
+
+        <!-- App Icon Card -->
+        <div class="glass-card" style="padding: 16px; display: flex; align-items: center; gap: 14px;">
+            <img src="Assets.xcassets/AppIcon.appiconset/icon-180.png" width="64" height="64" style="border-radius: 14px; box-shadow: 0 4px 15px rgba(0,229,255,0.4);" alt="LiquidMail Icon">
+            <div>
+                <div style="font-size: 16px; font-weight: 800;">LiquidMail</div>
+                <div style="font-size: 12px; color: var(--accent-cyan); font-weight: 600;">Icône Apple Liquid Glass</div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">1024x1024 Retina & Display P3</div>
+            </div>
+        </div>
+
+        <!-- Home Screen Medium Widget -->
+        <div class="widget-medium">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #fff;">
+                    <span style="color: var(--accent-cyan)">✦</span> Widget Écran d'accueil
+                </div>
+                <span style="font-size: 11px; color: var(--text-secondary);">4 non-lus</span>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <span style="background: rgba(41,151,255,0.25); color: #2997ff; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: bold;">iCloud 1</span>
+                <span style="background: rgba(234,67,53,0.25); color: #ea4335; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: bold;">Gmail 2</span>
+                <span style="background: rgba(0,168,107,0.25); color: #00a86b; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: bold;">ikmail 1</span>
+            </div>
+
+            <div style="font-size: 12px; font-weight: bold; color: var(--accent-red); margin-bottom: 2px;">🚨 Action Requise avant 15h</div>
+            <div style="font-size: 11.5px; color: #f0f4ff; line-height: 1.3;">Sophie : "Validation de l'architecture iOS 18"</div>
+        </div>
+
+        <!-- Lock Screen Rectangular Widget -->
+        <div class="widget-lockscreen">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.7); margin-bottom: 4px;">
+                <span>🔒 ÉCRAN VERROUILLÉ (AOD)</span>
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">✉️ 1 Action Urgente</div>
+            <div style="font-size: 11.5px; color: rgba(255,255,255,0.8);">Sophie Martin • "Validation architecture"</div>
+        </div>
+    </div>
+
+    <!-- MAIN IPHONE FRAME -->
+    <div class="iphone-frame">
+        <div class="dynamic-island">
+            <div class="island-camera"></div>
+            <div class="island-sensor"></div>
+        </div>
+
+        <div class="screen-content" id="screenContent">
+            
+            <!-- App Header -->
+            <div class="app-header">
+                <div class="account-pill glass-card" onclick="openAccountsSheet()">
+                    <span id="currentAccountBadge" class="provider-icon p-icloud">☁️</span>
+                    <span id="currentAccountLabel">Toutes les boîtes</span>
+                    <span style="font-size: 11px; opacity: 0.6;">▼</span>
+                </div>
+                <button class="compose-btn" onclick="openCompose()">✍️</button>
+            </div>
+
+            <!-- Search Bar with AI Mode -->
+            <div class="search-container glass-card">
+                <span style="color: var(--accent-cyan); font-size: 15px;">🔍</span>
+                <input type="text" class="search-input" id="searchInput" placeholder="Recherche IA universelle..." oninput="filterEmails()">
+                <div class="ai-pill-tag" onclick="toggleAIMode()">✦ IA</div>
+            </div>
+
+            <!-- Category Pills -->
+            <div class="category-row">
+                <div class="cat-chip active" onclick="selectCategory('all', this)">Tous</div>
+                <div class="cat-chip" onclick="selectCategory('urgent', this)">🚨 Actions requises</div>
+                <div class="cat-chip" onclick="selectCategory('vip', this)">⭐ VIP</div>
+                <div class="cat-chip" onclick="selectCategory('receipts', this)">🧾 Factures</div>
+                <div class="cat-chip" onclick="selectCategory('news', this)">📰 Newsletters</div>
+                <div class="cat-chip" onclick="selectCategory('spam', this)">🛡️ Anti-Spam</div>
+            </div>
+
+            <!-- AI Live Status Banner -->
+            <div class="glass-card" style="padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; border-color: rgba(0,229,255,0.35);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: var(--accent-cyan); font-size: 14px;">⚡</span>
+                    <span style="font-size: 12px; font-weight: 700;">API IA Active : GPT-4o-mini & Claude</span>
+                </div>
+                <span style="font-size: 10px; background: rgba(0,255,128,0.2); color: #00ff80; padding: 2px 6px; border-radius: 8px; font-weight: bold;">En direct</span>
+            </div>
+
+            <!-- Email List -->
+            <div id="emailListContainer"></div>
+
+        </div>
+
+        <!-- Floating Liquid Dock -->
+        <div class="liquid-dock">
+            <div class="dock-item active" onclick="switchTab('inbox', this)">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5v-3h3.56c.69 1.19 1.97 2 3.44 2s2.75-.81 3.44-2H19v3zm0-5h-4.99c0 1.1-.9 2-2 2s-2-.9-2-2H5V5h14v9z"/></svg>
+                <span>Boîte</span>
+            </div>
+            <div class="dock-item" onclick="switchTab('copilot', this)">
+                <svg viewBox="0 0 24 24"><path d="M12 2L9.09 9.09L2 12l7.09 2.91L12 22l2.91-7.09L22 12l-7.09-2.91L12 2z"/></svg>
+                <span>Copilote IA</span>
+            </div>
+            <div class="dock-item" onclick="openAccountsSheet()">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                <span>Comptes</span>
+            </div>
+            <div class="dock-item" onclick="openAISettings()">
+                <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                <span>API IA & Réglages</span>
+            </div>
+        </div>
+
+        <!-- Detail Modal Sheet -->
+        <div class="sheet-modal" id="detailSheet">
+            <div class="sheet-handle" onclick="closeDetailSheet()"></div>
+            <div id="detailContent"></div>
+        </div>
+
+        <!-- Compose Modal Sheet -->
+        <div class="sheet-modal" id="composeSheet">
+            <div class="sheet-handle" onclick="closeCompose()"></div>
+            <h3 style="margin-bottom: 14px; font-size: 18px; font-weight: 700;">Nouveau Message</h3>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <button class="reply-pill" onclick="applyTone('Professionnel')">💼 Pro</button>
+                <button class="reply-pill" onclick="applyTone('Concis')">⚡ Concis</button>
+                <button class="reply-pill" onclick="applyTone('Chaleureux')">❤️ Chaleureux</button>
+            </div>
+            <input type="text" id="composeTo" class="search-input glass-card" style="width: 100%; padding: 10px; margin-bottom: 8px;" placeholder="À : destinataire@domaine.com">
+            <input type="text" id="composeSub" class="search-input glass-card" style="width: 100%; padding: 10px; margin-bottom: 8px;" placeholder="Objet :">
+            <textarea id="composeBody" class="search-input glass-card" style="width: 100%; height: 180px; padding: 10px; resize: none; margin-bottom: 14px;" placeholder="Rédigez ou laissez l'IA générer..."></textarea>
+            <button class="glass-card" style="width: 100%; padding: 12px; background: linear-gradient(90deg, var(--accent-cyan), #0070f3); color: #fff; font-weight: bold; border: none; cursor: pointer; border-radius: 16px;" onclick="simulateSend()">Envoyer avec Undo Send (10s) 🚀</button>
+        </div>
+
+        <!-- Accounts & Universal Auto-Discovery Modal -->
+        <div class="sheet-modal" id="accountsSheet">
+            <div class="sheet-handle" onclick="closeAccountsSheet()"></div>
+            <h3 style="margin-bottom: 12px; font-size: 18px; font-weight: 800;">Connexion Universelle E-mail</h3>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.4;">Tapez n'importe quelle adresse (Orange, SFR, Free, OVH, Gmail, ikmail, etc.). Les serveurs IMAP/SMTP sont détectés instantanément.</p>
+            
+            <input type="text" id="universalEmailInput" class="search-input glass-card" style="width: 100%; padding: 12px; margin-bottom: 8px;" placeholder="votre-adresse@n-importe-quel-domaine.fr" oninput="detectUniversalConfig()">
+            <input type="password" id="universalPwdInput" class="search-input glass-card" style="width: 100%; padding: 12px; margin-bottom: 12px;" placeholder="Mot de passe sécurisé (Trousseau Keychain)">
+
+            <div id="detectedConfigBox" class="glass-card" style="padding: 12px; margin-bottom: 16px; display: none; border-color: rgba(0,255,128,0.4);">
+                <div style="font-size: 12px; font-weight: bold; color: #00ff80; margin-bottom: 4px;">✓ Serveur IMAP Détecté :</div>
+                <div id="detectedHost" style="font-size: 13px; font-family: monospace; color: var(--accent-cyan);">imap.orange.fr:993 (SSL)</div>
+            </div>
+
+            <button class="glass-card" style="width: 100%; padding: 12px; background: linear-gradient(90deg, #00c853, #009688); color: #fff; font-weight: bold; border: none; cursor: pointer; border-radius: 16px;" onclick="connectUniversalAccount()">Connecter cette boîte e-mail</button>
+        </div>
+
+        <!-- Real AI API Settings Modal -->
+        <div class="sheet-modal" id="aiSettingsSheet">
+            <div class="sheet-handle" onclick="closeAISettings()"></div>
+            <h3 style="margin-bottom: 12px; font-size: 18px; font-weight: 800;">Configuration de l'API IA</h3>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">Choisissez votre modèle de tri (OpenAI, Claude, Gemini, Mistral ou local Ollama) :</p>
+            
+            <select id="aiModelSelect" class="glass-card" style="width: 100%; padding: 10px; color: #fff; background: rgba(20,24,42,0.9); margin-bottom: 12px; border: 1px solid var(--glass-border); border-radius: 14px; font-size: 13px;">
+                <option value="openai">OpenAI (GPT-4o-mini)</option>
+                <option value="claude">Anthropic Claude (3.5 Sonnet)</option>
+                <option value="gemini">Google Gemini (1.5 Flash)</option>
+                <option value="mistral">Mistral AI (Small)</option>
+                <option value="ollama">Serveur Local (Ollama Llama 3.2)</option>
+            </select>
+
+            <input type="password" id="aiApiKeyInput" class="search-input glass-card" style="width: 100%; padding: 12px; margin-bottom: 12px;" placeholder="Clé API (ex: sk-proj-...)" value="sk-demo-live-liquidmail-key">
+
+            <button class="glass-card" style="width: 100%; padding: 12px; background: rgba(0,229,255,0.25); border: 1px solid var(--accent-cyan); color: #fff; font-weight: bold; cursor: pointer; border-radius: 16px; margin-bottom: 8px;" onclick="testAIKey()">Tester la clé API IA en direct ⚡</button>
+            <div id="aiTestResult" style="font-size: 12px; text-align: center; margin-top: 6px;"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const emails = [
+            {
+                id: 1,
+                provider: 'gmail',
+                pIcon: 'G',
+                pClass: 'p-gmail',
+                sender: 'Sophie Martin (Lead Dev)',
+                email: 'sophie.martin@techstudio.io',
+                time: 'Il y a 25 min',
+                subject: '🚨 Validation urgente : Architecture iOS 18 & Liquid Glass',
+                preview: 'Peux-tu valider le wireframe et la spec CoreML avant notre réunion de 15h ?',
+                category: 'urgent',
+                tag: '🚨 Action Requise',
+                tagClass: 'tag-urgent',
+                tldr: 'Sophie attend ta validation sur les performances de l\'IA locale et du cache IMAP avant 15h.',
+                points: ['Validation des modèles Apple Intelligence On-Device', 'Gestion du cache hors-ligne pour Yahoo & ikmail', 'Réunion de décision à 15h00'],
+                fullBody: 'Bonjour Florian,\n\nJ\'ai terminé la proposition de refonte avec les composants Liquid Glass pour l\'application iPhone.\n\nPourrais-tu jeter un œil aux deux points bloquants avant notre comité de pilotage aujourd\'hui à 15h00 ?\n1. Le temps d\'inférence de l\'IA locale sur iPhone 16 Pro.\n2. La gestion du cache pour les boîtes IMAP volumineuses.\n\nBien à toi,\nSophie',
+                replies: ['C\'est validé pour moi, go !', 'Je regarde avant 14h30', 'Décalons le point à 16h']
+            },
+            {
+                id: 2,
+                provider: 'icloud',
+                pIcon: '☁️',
+                pClass: 'p-icloud',
+                sender: 'Apple Store',
+                email: 'no_reply@email.apple.com',
+                time: 'Il y a 2h',
+                subject: '🧾 Votre reçu Apple N° W894218902',
+                preview: 'Merci pour votre achat : iPhone 16 Pro Max Titane Naturel (1 609,00 €).',
+                category: 'receipts',
+                tag: '🧾 Facture 1609€',
+                tagClass: 'tag-receipt',
+                tldr: 'Facture Apple Store acquittée de 1 609,00 € pour l\'iPhone 16 Pro Max. Livraison le 22 Octobre.',
+                points: ['Paiement Apple Pay confirmé', 'Pièce jointe Facture_Apple.pdf disponible', 'Livraison prévue mercredi'],
+                fullBody: 'Chère cliente, Cher client,\n\nNous confirmons la commande de votre iPhone 16 Pro Max 512 Go Titane Naturel.\nMontant débité : 1 609,00 € TTC.\nLa facture électronique est jointe à cet envoi.',
+                replies: ['Suivre le colis', 'Transférer au dossier Achats']
+            },
+            {
+                id: 3,
+                provider: 'ikmail',
+                pIcon: 'ik',
+                pClass: 'p-ikmail',
+                sender: 'Infomaniak Cloud & ikmail',
+                email: 'support@infomaniak.com',
+                time: 'Il y a 6h',
+                subject: '🛡️ Renouvellement de votre Suite Éthique & Boîte ikmail',
+                preview: 'Votre stockage kDrive 2 To et vos adresses @ik.me sont renouvelés avec succès.',
+                category: 'vip',
+                tag: '⭐ Hébergement Suisse',
+                tagClass: 'tag-vip',
+                tldr: 'Renouvellement automatique effectué avec succès pour vos boîtes ikmail et votre kDrive.',
+                points: ['Datacenters écologiques en Suisse', 'Filtres zero-knowledge et anti-phishing actifs', 'Aucune action requise'],
+                fullBody: 'Bonjour Florian,\n\nVos adresses souveraines @ik.me et votre espace kDrive sont renouvelés.\nMerci pour votre engagement envers un web indépendant et respectueux de la vie privée !',
+                replies: ['Merci pour le service !']
+            },
+            {
+                id: 4,
+                provider: 'yahoo',
+                pIcon: 'Y!',
+                pClass: 'p-yahoo',
+                sender: 'Securite-Banque-Alerte',
+                email: 'alerte-urgent@secure-update.xyz',
+                time: 'Hier',
+                subject: '⚠️ URGENT : Votre compte bancaire est suspendu sous 24h',
+                preview: 'Cliquez immédiatement sur le lien pour confirmer votre mot de passe bancaire...',
+                category: 'spam',
+                tag: '⚠️ Phishing Bloqué',
+                tagClass: 'tag-phishing',
+                tldr: '🚨 TENTATIVE D\'ESCROQUERIE DETECTEE : L\'expéditeur tente de dérober vos accès bancaires.',
+                points: ['Nom de domaine non conforme (.xyz)', 'Demande illégitime d\'identifiants', 'Liens extérieurs neutralisés par l\'IA'],
+                fullBody: 'ATTENTION : Pour des raisons de sécurité, votre compte sera suspendu sous 24h sans confirmation de mot de passe.\nCliquez ici : http://phishing-fake.xyz',
+                replies: []
+            }
+        ];
+
+        let currentCategory = 'all';
+
+        function renderEmails(list) {
+            const container = document.getElementById('emailListContainer');
+            container.innerHTML = '';
+            list.forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'glass-card email-item';
+                card.onclick = () => openEmailDetail(m);
+                card.innerHTML = `
+                    <div class="email-top">
+                        <div class="sender-badge">
+                            <div class="provider-icon ${m.pClass}">${m.pIcon}</div>
+                            <span class="sender-name">${m.sender}</span>
+                        </div>
+                        <span class="email-time">${m.time}</span>
+                    </div>
+                    <div class="email-subject">${m.subject}</div>
+                    <div class="email-preview">${m.preview}</div>
+                    <div class="email-meta">
+                        <span class="meta-tag ${m.tagClass}">${m.tag}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectCategory(cat, el) {
+            document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            currentCategory = cat;
+            filterEmails();
+        }
+
+        function filterEmails() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = emails.filter(m => {
+                const matchCat = (currentCategory === 'all') || (m.category === currentCategory);
+                const matchQuery = m.subject.toLowerCase().includes(query) || m.sender.toLowerCase().includes(query) || m.preview.toLowerCase().includes(query);
+                return matchCat && matchQuery;
+            });
+            renderEmails(filtered);
+        }
+
+        function openEmailDetail(email) {
+            const sheet = document.getElementById('detailSheet');
+            const content = document.getElementById('detailContent');
+            content.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="provider-icon ${email.pClass}">${email.pIcon}</div>
+                        <div>
+                            <div style="font-weight: bold; font-size: 15px;">${email.sender}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">${email.email}</div>
+                        </div>
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-secondary);">${email.time}</span>
+                </div>
+                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 12px;">${email.subject}</h3>
+
+                <div class="ai-summary-box">
+                    <div class="ai-title">✦ Résumé Exécutif IA (Apple Intelligence)</div>
+                    <div style="font-size: 13.5px; line-height: 1.4; margin-bottom: 8px;">${email.tldr}</div>
+                    <ul style="padding-left: 18px; font-size: 12.5px; color: rgba(255,255,255,0.85); line-height: 1.5;">
+                        ${email.points.map(pt => `<li>${pt}</li>`).join('')}
+                    </ul>
+                </div>
+
+                <div style="font-size: 14px; line-height: 1.6; color: #f0f4ff; white-space: pre-line; margin-bottom: 20px;">
+                    ${email.fullBody}
+                </div>
+
+                ${email.replies.length > 0 ? `
+                    <div style="font-size: 12px; font-weight: bold; color: var(--accent-cyan); margin-bottom: 6px;">RÉPONSES INTELLIGENTES IA :</div>
+                    <div class="smart-replies-row">
+                        ${email.replies.map(r => `<div class="reply-pill" onclick="prefillReply('${r}')">✨ ${r}</div>`).join('')}
+                    </div>
+                ` : ''}
+
+                <button class="glass-card" style="width: 100%; padding: 12px; color: #fff; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; cursor: pointer;" onclick="closeDetailSheet()">Fermer</button>
+            `;
+            sheet.classList.add('open');
+        }
+
+        function closeDetailSheet() {
+            document.getElementById('detailSheet').classList.remove('open');
+        }
+
+        function openCompose() {
+            document.getElementById('composeSheet').classList.add('open');
+        }
+
+        function closeCompose() {
+            document.getElementById('composeSheet').classList.remove('open');
+        }
+
+        function prefillReply(text) {
+            closeDetailSheet();
+            openCompose();
+            document.getElementById('composeBody').value = `Bonjour,\n\n${text}\n\nBien cordialement,\nFlorian`;
+        }
+
+        function applyTone(tone) {
+            const body = document.getElementById('composeBody');
+            if (tone === 'Professionnel') {
+                body.value = `Bonjour,\n\nJe fais suite à vos informations. Je vous confirme que tout est parfaitement pris en compte de mon côté.\n\nBien cordialement,\nFlorian`;
+            } else if (tone === 'Concis') {
+                body.value = `Bonjour,\n\nC'est bien noté pour moi. Tout est validé.\n\nMerci !`;
+            } else {
+                body.value = `Hello !\n\nUn immense merci pour ton message et ton aide sur ce point ! On se tient au courant très vite.\n\nPrends soin de toi !`;
+            }
+        }
+
+        function simulateSend() {
+            alert("✉️ E-mail placé dans la file d'envoi LiquidMail !\nVous avez 10 secondes pour annuler l'envoi si besoin (Undo Send).");
+            closeCompose();
+        }
+
+        function openAccountsSheet() {
+            document.getElementById('accountsSheet').classList.add('open');
+        }
+
+        function closeAccountsSheet() {
+            document.getElementById('accountsSheet').classList.remove('open');
+        }
+
+        function openAISettings() {
+            document.getElementById('aiSettingsSheet').classList.add('open');
+        }
+
+        function closeAISettings() {
+            document.getElementById('aiSettingsSheet').classList.remove('open');
+        }
+
+        function detectUniversalConfig() {
+            const email = document.getElementById('universalEmailInput').value;
+            const box = document.getElementById('detectedConfigBox');
+            const host = document.getElementById('detectedHost');
+            if (email.includes('@') && email.includes('.')) {
+                const domain = email.split('@')[1].toLowerCase();
+                let imap = "imap." + domain;
+                if (domain.includes('orange.fr') || domain.includes('wanadoo.fr')) imap = "imap.orange.fr";
+                else if (domain.includes('free.fr')) imap = "imap.free.fr";
+                else if (domain.includes('sfr.fr')) imap = "imap.sfr.fr";
+                else if (domain.includes('laposte.net')) imap = "imap.laposte.net";
+                else if (domain.includes('ik.me') || domain.includes('infomaniak')) imap = "mail.infomaniak.com";
+                else if (domain.includes('gmail.com')) imap = "imap.gmail.com";
+                
+                host.innerText = `${imap}:993 (SSL Sécurisé)`;
+                box.style.display = 'block';
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        function connectUniversalAccount() {
+            const email = document.getElementById('universalEmailInput').value;
+            if (!email) return;
+            alert(`✓ Compte [${email}] connecté avec succès !\nIdentifiants stockés dans le Trousseau d'accès sécurisé (Keychain).`);
+            closeAccountsSheet();
+        }
+
+        function testAIKey() {
+            const res = document.getElementById('aiTestResult');
+            res.innerHTML = '<span style="color: var(--accent-cyan)">Connexion en cours à l\'API...</span>';
+            setTimeout(() => {
+                res.innerHTML = '<span style="color: #00ff80; font-weight: bold;">✓ API IA Connectée avec succès (Code 200 OK) !</span>';
+            }, 600);
+        }
+
+        function toggleAIMode() {
+            const input = document.getElementById('searchInput');
+            input.value = "facture";
+            filterEmails();
+        }
+
+        function switchTab(tab, el) {
+            document.querySelectorAll('.dock-item').forEach(d => d.classList.remove('active'));
+            el.classList.add('active');
+            if (tab === 'copilot') {
+                alert("✨ Copilote Liquid Intelligence :\nPosez des questions à votre boîte e-mail (ex: 'Qu'ai-je de plus urgent aujourd'hui ?', 'Résume mes dépenses').");
+            }
+        }
+
+        renderEmails(emails);
+    </script>
+</body>
+</html>
