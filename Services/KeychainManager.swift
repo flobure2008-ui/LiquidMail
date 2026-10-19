@@ -43,6 +43,10 @@ public class KeychainManager {
         return nil
     }
     
+    public func get(key: String) -> String? {
+        return retrieve(key: key)
+    }
+    
     @discardableResult
     public func delete(key: String) -> Bool {
         let query: [String: Any] = [

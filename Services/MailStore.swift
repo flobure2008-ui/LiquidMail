@@ -231,7 +231,7 @@ public class MailStore: ObservableObject {
     public func refreshInbox() async {
         await MainActor.run { isSyncing = true }
         for account in accounts {
-            if let pwd = KeychainManager.shared.get(key: "account_pwd_\(account.emailAddress)") {
+            if let pwd = KeychainManager.shared.retrieve(key: "account_pwd_\(account.emailAddress)") {
                 let config = MailAutoDiscovery.shared.discover(email: account.emailAddress)
                 if let fetched = try? await RealIMAPService.shared.authenticateAndFetch(email: account.emailAddress, password: pwd, serverConfig: config) {
                     await MainActor.run {
