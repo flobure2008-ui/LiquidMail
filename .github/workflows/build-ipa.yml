@@ -27,6 +27,7 @@ jobs:
 
       - name: Build Archive (No Signing / Sideload-Ready)
         run: |
+          set +e
           xcodebuild archive \
             -project LiquidMail.xcodeproj \
             -scheme LiquidMail \
@@ -37,7 +38,15 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+            AD_HOC_CODE_SIGNING_ALLOWED=YES 2>&1 | tee xcodebuild.log
+          STATUS=${PIPESTATUS[0]}
+          if [ $STATUS -ne 0 ]; then
+            echo "## ❌ Xcodebuild failed with code $STATUS" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -E "error:" xcodebuild.log | head -n 30 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit $STATUS
+          fi
 
       - name: Package into IPA
         run: |

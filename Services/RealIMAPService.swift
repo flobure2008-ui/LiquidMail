@@ -38,10 +38,9 @@ public class RealIMAPService {
         }
         
         let host = NWEndpoint.Host(serverConfig.imapHost)
-        let portNumber = UInt16(serverConfig.imapPort) > 0 ? UInt16(serverConfig.imapPort) : (serverConfig.useSSL ? 993 : 143)
-        let port = NWEndpoint.Port(rawValue: portNumber) ?? (serverConfig.useSSL ? .imaps : NWEndpoint.Port(integerLiteral: 143))
-        
-        let parameters: NWParameters = serverConfig.useSSL ? .tls : .tcp
+        let port = NWEndpoint.Port(rawValue: UInt16(serverConfig.imapPort)) ?? .imaps
+        let tcpOptions = NWProtocolTCP.Options()
+        let parameters = serverConfig.useSSL ? NWParameters(tls: NWProtocolTLS.Options(), tcp: tcpOptions) : NWParameters(tls: nil, tcp: tcpOptions)
         let connection = NWConnection(host: host, port: port, using: parameters)
         
         return try await withCheckedThrowingContinuation { continuation in
