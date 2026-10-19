@@ -4,14 +4,15 @@ public struct SettingsView: View {
     @EnvironmentObject var mailStore: MailStore
     @StateObject private var aiService = AIProviderService.shared
     
+    @State private var showingAddAccountModal: Bool = false
     @State private var isAIAutoTriageEnabled: Bool = true
+    @State private var isSummaryEnabled: Bool = true
     @State private var isPhishingAutoShieldEnabled: Bool = true
-    @State private var notifyOnlyVIP: Bool = true
-    @State private var showingCacheCleanAlert: Bool = false
-    @State private var isKeyVisible: Bool = false
+    @State private var hapticEnabled: Bool = true
     @State private var tempApiKey: String = ""
-    @State private var isBatchTriaging: Bool = false
-    @State private var batchTriageSuccess: Bool = false
+    @State private var isKeyVisible: Bool = false
+    @State private var showingCacheCleanAlert: Bool = false
+    @State private var previewLineCount: Int = 2
     
     public init() {}
     
@@ -20,77 +21,103 @@ public struct SettingsView: View {
             ZStack {
                 LiquidAmbientBackground(theme: mailStore.glassTheme)
                 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        
-                        // MARK: - Header
-                        Text("Réglages & Intelligence")
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 4)
-                        
-                        // MARK: - REAL AI API INTEGRATION SECTION
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack {
-                                Image(systemName: "cpu.fill")
-                                    .foregroundColor(.cyan)
-                                Text("Moteur d'API IA (Triage & Résumés)")
-                                    .font(.system(size: 15, weight: .bold))
-                                Spacer()
-                                Text("Connecté")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(Capsule().fill(Color.green.opacity(0.2)))
-                                    .foregroundColor(.green)
-                            }
-                            
-                            // Provider Picker
+                List {
+                    // MARK: - Section 1: Connected Accounts
+                    Section {
+                        if mailStore.accounts.isEmpty {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Fournisseur d'IA :")
-                                    .font(.system(size: 13, weight: .medium))
+                                Text("Aucune boîte e-mail connectée")
+                                    .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(.secondary)
-                                
-                                Picker("Fournisseur", selection: $aiService.activeProvider) {
-                                    ForEach(AIModelProvider.allCases) { provider in
-                                        Text(provider.rawValue).tag(provider)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .padding(8)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Capsule().fill(Color.white.opacity(0.1)))
+                                Text("Connectez votre première adresse pour recevoir et trier vos courriels.")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary.opacity(0.8))
                             }
-                            
-                            // API Key Field (if not on-device)
-                            if aiService.activeProvider != .appleIntelligence {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("Clé API (\(aiService.activeProvider.defaultModel)) :")
+                            .padding(.vertical, 4)
+                            .listRowBackground(Color.clear)
+                        } else {
+                            ForEach(mailStore.accounts) { acc in
+                                HStack(spacing: 12) {
+                                    ProviderBrandBadge(provider: acc.provider, size: 28)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(acc.name)
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.primary)
+                                        Text(acc.emailAddress)
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Circle().fill(Color.green).frame(width: 8, height: 8)
+                                }
+                                .padding(.vertical, 2)
+                                .listRowBackground(Color.clear)
+                            }
+                            .onDelete { indexSet in
+                                mailStore.removeAccount(at: indexSet)
+                            }
+                        }
+                        
+                        Button(action: {
+                            Haptics.medium()
+                            showingAddAccountModal = true
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(.cyan)
+                                Text("Ajouter un compte e-mail...")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.cyan)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .listRowBackground(Color.clear)
+                    } header: {
+                        Text("Comptes de messagerie")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // MARK: - Section 2: Artificial Intelligence & Triage Engine
+                    Section {
+                        // AI Provider Selection
+                        Picker("Moteur d'IA", selection: $aiService.activeProvider) {
+                            ForEach(AIModelProvider.allCases) { provider in
+                                Text(provider.rawValue).tag(provider)
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                        
+                        // API Key Configuration (if external API)
+                        if aiService.activeProvider != .appleIntelligence {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Clé API")
                                         .font(.system(size: 13, weight: .medium))
                                         .foregroundColor(.secondary)
-                                    
-                                    HStack {
-                                        if isKeyVisible {
-                                            TextField("sk-...", text: $tempApiKey)
-                                                .font(.system(size: 13, design: .monospaced))
-                                                .autocapitalization(.none)
-                                                .disableAutocorrection(true)
-                                        } else {
-                                            SecureField("sk-...", text: $tempApiKey)
-                                                .font(.system(size: 13, design: .monospaced))
-                                        }
-                                        
-                                        Button(action: { isKeyVisible.toggle() }) {
-                                            Image(systemName: isKeyVisible ? "eye.slash" : "eye")
-                                                .foregroundColor(.secondary)
-                                        }
+                                    Spacer()
+                                    Button(action: { isKeyVisible.toggle() }) {
+                                        Image(systemName: isKeyVisible ? "eye.slash" : "eye")
+                                            .foregroundColor(.secondary)
                                     }
-                                    .padding(12)
-                                    .liquidGlass(cornerRadius: 12, borderOpacity: 0.25)
                                 }
                                 
-                                // Test Connection Button
-                                HStack(spacing: 10) {
+                                HStack {
+                                    if isKeyVisible {
+                                        TextField("sk-...", text: $tempApiKey)
+                                            .font(.system(size: 13, design: .monospaced))
+                                            .autocapitalization(.none)
+                                            .disableAutocorrection(true)
+                                    } else {
+                                        SecureField("sk-...", text: $tempApiKey)
+                                            .font(.system(size: 13, design: .monospaced))
+                                    }
+                                }
+                                .padding(10)
+                                .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.08)))
+                                
+                                // Test API Key Button
+                                HStack {
                                     Button(action: {
                                         Haptics.medium()
                                         aiService.saveSettings(provider: aiService.activeProvider, key: tempApiKey)
@@ -102,218 +129,125 @@ public struct SettingsView: View {
                                             if aiService.isTestingConnection {
                                                 ProgressView().tint(.cyan)
                                             } else {
-                                                Image(systemName: "network")
+                                                Image(systemName: "checkmark.circle")
                                             }
-                                            Text("Tester la clé API")
-                                                .font(.system(size: 13, weight: .semibold))
+                                            Text("Tester la clé")
+                                                .font(.system(size: 12, weight: .bold))
                                         }
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
                                         .background(Capsule().fill(Color.cyan.opacity(0.2)))
-                                        .overlay(Capsule().strokeBorder(Color.cyan.opacity(0.5), lineWidth: 1))
                                         .foregroundColor(.cyan)
                                     }
                                     
-                                    if let status = aiService.connectionStatusMessage {
-                                        Text(status)
-                                            .font(.system(size: 11, weight: .medium))
-                                            .foregroundColor(status.contains("✓") ? .green : .red)
-                                            .lineLimit(2)
+                                    if let msg = aiService.connectionStatusMessage {
+                                        Text(msg)
+                                            .font(.system(size: 11))
+                                            .foregroundColor(msg.contains("✓") ? .green : .red)
                                     }
                                 }
+                                .padding(.top, 4)
                             }
-                            
-                            Divider().background(Color.white.opacity(0.15))
-                            
-                            // Batch Triage Button
-                            Button(action: {
-                                runBatchTriage()
-                            }) {
-                                HStack {
-                                    if isBatchTriaging {
-                                        ProgressView().tint(.white)
-                                        Text("Triage IA de vos boîtes en cours...")
-                                    } else {
-                                        Image(systemName: "wand.and.stars")
-                                        Text(batchTriageSuccess ? "✓ Boîtes triées avec succès !" : "Lancer le tri automatique IA maintenant")
-                                    }
-                                    Spacer()
-                                }
-                                .font(.system(size: 14, weight: .bold))
-                                .padding(12)
-                                .background(
-                                    LinearGradient(colors: [.cyan, .blue], startPoint: .leading, endPoint: .trailing)
-                                )
-                                .cornerRadius(14)
-                                .foregroundColor(.white)
-                            }
-                            .disabled(isBatchTriaging)
+                            .padding(.vertical, 4)
+                            .listRowBackground(Color.clear)
                         }
-                        .padding(16)
-                        .liquidGlass(cornerRadius: 20, borderOpacity: 0.4, glowColor: .cyan)
                         
-                        // MARK: - Liquid Glass Theme Selector
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "paintpalette.fill")
-                                    .foregroundColor(.cyan)
-                                Text("Thème Liquid Glass")
-                                    .font(.system(size: 15, weight: .bold))
-                            }
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(GlassTheme.allCases) { theme in
-                                        Button(action: {
-                                            Haptics.light()
-                                            withAnimation(.spring()) {
-                                                mailStore.glassTheme = theme
-                                            }
-                                        }) {
-                                            VStack(spacing: 8) {
-                                                RoundedRectangle(cornerRadius: 14)
-                                                    .fill(
-                                                        LinearGradient(
-                                                            colors: theme.gradientColors,
-                                                            startPoint: .topLeading,
-                                                            endPoint: .bottomTrailing
-                                                        )
-                                                    )
-                                                    .frame(width: 72, height: 50)
-                                                    .overlay(
-                                                        RoundedRectangle(cornerRadius: 14)
-                                                            .strokeBorder(
-                                                                mailStore.glassTheme == theme ? Color.cyan : Color.white.opacity(0.3),
-                                                                lineWidth: mailStore.glassTheme == theme ? 2.5 : 1
-                                                            )
-                                                    )
-                                                    .shadow(color: mailStore.glassTheme == theme ? Color.cyan.opacity(0.4) : .clear, radius: 8)
-                                                
-                                                Text(theme.rawValue)
-                                                    .font(.system(size: 11, weight: .medium))
-                                                    .foregroundColor(mailStore.glassTheme == theme ? .cyan : .secondary)
-                                            }
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal, 4)
-                            }
-                        }
-                        .padding(16)
-                        .liquidGlass(cornerRadius: 20, borderOpacity: 0.3)
-                        
-                        // MARK: - Mail & Sending Options
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack {
-                                Image(systemName: "paperplane.fill")
-                                    .foregroundColor(.cyan)
-                                Text("Options d'Envoi & Sécurité")
-                                    .font(.system(size: 15, weight: .bold))
-                            }
-                            
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Délai d'annulation d'envoi")
-                                        .font(.system(size: 14, weight: .medium))
-                                    Text("Temps imparti pour stopper un e-mail envoyé par erreur")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-                                Spacer()
-                                
-                                Picker("Délai", selection: $mailStore.undoSendDuration) {
-                                    Text("5 sec").tag(5)
-                                    Text("10 sec").tag(10)
-                                    Text("30 sec").tag(30)
-                                }
-                                .pickerStyle(.segmented)
-                                .frame(width: 150)
-                            }
-                            
-                            Divider().background(Color.white.opacity(0.15))
-                            
-                            Toggle(isOn: $mailStore.isFaceIDEnabled) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Verrouillage Face ID")
-                                        .font(.system(size: 14, weight: .medium))
-                                    Text("Exiger Face ID pour accéder à vos boîtes")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
+                        Toggle("Triage automatique à la réception", isOn: $isAIAutoTriageEnabled)
                             .tint(.cyan)
-                            
-                            Divider().background(Color.white.opacity(0.15))
-                            
-                            Toggle(isOn: $notifyOnlyVIP) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Notifications intelligentes VIP")
-                                        .font(.system(size: 14, weight: .medium))
-                                    Text("Ne faire vibrer l'iPhone que pour les actions urgentes et VIP")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .tint(.cyan)
-                        }
-                        .padding(16)
-                        .liquidGlass(cornerRadius: 20, borderOpacity: 0.3)
+                            .listRowBackground(Color.clear)
                         
-                        // MARK: - Cache & Maintenance
+                        Toggle("Générer les résumés exécutifs TL;DR", isOn: $isSummaryEnabled)
+                            .tint(.cyan)
+                            .listRowBackground(Color.clear)
+                        
+                        Toggle("Bouclier Anti-Phishing & Arnaques", isOn: $isPhishingAutoShieldEnabled)
+                            .tint(.cyan)
+                            .listRowBackground(Color.clear)
+                    } header: {
+                        Text("Intelligence Artificielle & Triage")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // MARK: - Section 3: Liquid Glass & Display
+                    Section {
+                        Picker("Thème Liquid Glass", selection: $mailStore.glassTheme) {
+                            ForEach(GlassTheme.allCases) { theme in
+                                Text(theme.rawValue).tag(theme)
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                        
+                        Picker("Lignes d'aperçu des messages", selection: $previewLineCount) {
+                            Text("1 ligne").tag(1)
+                            Text("2 lignes").tag(2)
+                            Text("3 lignes").tag(3)
+                        }
+                        .listRowBackground(Color.clear)
+                        
+                        Toggle("Retours haptiques Apple", isOn: $hapticEnabled)
+                            .tint(.cyan)
+                            .listRowBackground(Color.clear)
+                    } header: {
+                        Text("Apparence & Affichage")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // MARK: - Section 4: Security & Sending
+                    Section {
+                        Toggle("Verrouillage Face ID", isOn: $mailStore.isFaceIDEnabled)
+                            .tint(.cyan)
+                            .listRowBackground(Color.clear)
+                        
+                        Picker("Délai d'annulation d'envoi", selection: $mailStore.undoSendDuration) {
+                            Text("5 secondes").tag(5)
+                            Text("10 secondes").tag(10)
+                            Text("30 secondes").tag(30)
+                        }
+                        .listRowBackground(Color.clear)
+                        
                         Button(action: {
                             Haptics.warning()
                             showingCacheCleanAlert = true
                         }) {
-                            HStack {
-                                Image(systemName: "trash.circle.fill")
-                                    .foregroundColor(.orange)
-                                Text("Vider le cache hors-ligne (128 Mo)")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.orange)
-                                Spacer()
-                            }
-                            .padding(16)
-                            .liquidGlass(cornerRadius: 18, borderOpacity: 0.25)
+                            Text("Vider le cache hors-ligne")
+                                .foregroundColor(.red)
                         }
-                        
-                        // App version footer
-                        VStack(alignment: .center, spacing: 4) {
-                            Text("LiquidMail pour iPhone • iOS 18.2")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
-                            Text("Widgets Écran d'accueil & Verrouillé activés")
+                        .listRowBackground(Color.clear)
+                    } header: {
+                        Text("Sécurité & Envoi")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.secondary)
+                    } footer: {
+                        VStack(spacing: 4) {
+                            Text("LiquidMail pour iPhone • Version 1.0.1")
                                 .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            Text("Chiffrement Apple Keychain & Modèles IA Privés")
+                                .font(.system(size: 10))
                                 .foregroundColor(.secondary.opacity(0.7))
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 10)
-                        
-                        Spacer(minLength: 80)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 14)
                     }
-                    .padding(16)
                 }
+                .scrollContentBackground(.hidden)
             }
-            .navigationBarHidden(true)
-            .alert("Cache nettoyé", isPresented: $showingCacheCleanAlert) {
+            .navigationTitle("Réglages")
+            .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showingAddAccountModal) {
+                AddAccountView()
+                    .environmentObject(mailStore)
+            }
+            .alert("Cache vidé", isPresented: $showingCacheCleanAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("Le cache des pièces jointes et messages hors-ligne a été vidé.")
+                Text("Les données en cache ont été supprimées.")
             }
             .onAppear {
                 tempApiKey = aiService.apiKey
             }
-        }
-    }
-    
-    private func runBatchTriage() {
-        Haptics.medium()
-        isBatchTriaging = true
-        batchTriageSuccess = false
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            isBatchTriaging = false
-            batchTriageSuccess = true
-            Haptics.success()
         }
     }
 }

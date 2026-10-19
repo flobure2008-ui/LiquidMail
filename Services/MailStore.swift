@@ -11,329 +11,66 @@ public struct PendingSentMail: Identifiable {
     public var remainingSeconds: Int
 }
 
-// MARK: - Main Mail Store
+// MARK: - Main Mail Store (Pure Zero-State, No Dummy Accounts or Fake Emails)
 public class MailStore: ObservableObject {
     @Published public var accounts: [EmailAccount] = []
-    @Published public var selectedAccount: EmailAccount? = nil // nil means "Toutes les boîtes" (Unified Inbox)
+    @Published public var selectedAccount: EmailAccount? = nil
     @Published public var emails: [EmailMessage] = []
     @Published public var selectedCategory: AICategory = .all
     @Published public var searchText: String = ""
     @Published public var isAIModeSearchActive: Bool = false
     @Published public var pendingSend: PendingSentMail? = nil
-    @Published public var glassTheme: GlassTheme = .aurora
+    @Published public var glassTheme: GlassTheme = .obsidian
     @Published public var undoSendDuration: Int = 10 // seconds
     @Published public var isFaceIDEnabled: Bool = false
+    @Published public var isSyncing: Bool = false
     
     private var undoTimer: AnyCancellable?
+    private let accountsStorageKey = "liquidmail_saved_accounts"
+    private let emailsStorageKey = "liquidmail_saved_emails"
     
     public init() {
-        setupDefaultAccounts()
-        loadSampleData()
+        loadPersistedData()
     }
     
-    // MARK: - Initial Accounts (iCloud, Gmail, Yahoo, Infomaniak ikmail)
-    private func setupDefaultAccounts() {
-        let icloudAcc = EmailAccount(
-            name: "iCloud Personnel",
-            emailAddress: "florian.perso@icloud.com",
-            provider: .icloud,
-            isActive: true,
-            unreadCount: 2
-        )
-        let gmailAcc = EmailAccount(
-            name: "Google Workspace",
-            emailAddress: "florian.pro@gmail.com",
-            provider: .gmail,
-            isActive: true,
-            unreadCount: 4
-        )
-        let yahooAcc = EmailAccount(
-            name: "Yahoo Mail",
-            emailAddress: "florian.vintage@yahoo.fr",
-            provider: .yahoo,
-            isActive: true,
-            unreadCount: 1
-        )
-        let ikmailAcc = EmailAccount(
-            name: "Infomaniak ikmail",
-            emailAddress: "contact@entreprise.ik.me",
-            provider: .ikmail,
-            isActive: true,
-            unreadCount: 1
-        )
+    // MARK: - Local Persistence (No Demo Accounts)
+    private func loadPersistedData() {
+        if let data = UserDefaults.standard.data(forKey: accountsStorageKey),
+           let saved = try? JSONDecoder().decode([EmailAccount].self, from: data) {
+            self.accounts = saved
+        } else {
+            self.accounts = [] // Zero accounts by default
+        }
         
-        self.accounts = [icloudAcc, gmailAcc, yahooAcc, ikmailAcc]
+        if let data = UserDefaults.standard.data(forKey: emailsStorageKey),
+           let saved = try? JSONDecoder().decode([EmailMessage].self, from: data) {
+            self.emails = saved
+        } else {
+            self.emails = [] // Zero emails by default
+        }
     }
     
-    // MARK: - Load Realistic Demo Emails
-    private func loadSampleData() {
-        guard accounts.count >= 4 else { return }
-        let icloud = accounts[0]
-        let gmail = accounts[1]
-        let yahoo = accounts[2]
-        let ikmail = accounts[3]
-        
-        let sampleList: [EmailMessage] = [
-            // 1. Action Required (Gmail)
-            EmailMessage(
-                accountId: gmail.id,
-                provider: .gmail,
-                senderName: "Sophie Martin (Lead Dev)",
-                senderEmail: "sophie.martin@techstudio.io",
-                recipientEmail: gmail.emailAddress,
-                subject: "🚨 Urgent : Validation de l'architecture iOS 18 & Liquid Glass",
-                preview: "Peux-tu valider le wireframe et la spec CoreML avant notre réunion de 15h ?",
-                bodyContent: """
-                Bonjour Florian,
-                
-                J'ai terminé la proposition de refonte avec les composants Liquid Glass pour l'application iPhone.
-                
-                Pourrais-tu jeter un œil aux deux points bloquants avant notre comité de pilotage aujourd'hui à 15h00 ?
-                1. Le temps de réponse de l'IA locale (Apple Intelligence) sur l'iPhone 16 Pro.
-                2. La gestion du cache hors-ligne pour les boîtes IMAP volumineuses (notamment ikmail et Yahoo).
-                
-                Les maquettes interactives sont validées par le design. J'attends ton feu vert pour lancer les devs !
-                
-                Bien à toi,
-                Sophie
-                """,
-                timestamp: Calendar.current.date(byAdding: .minute, value: -25, to: Date()) ?? Date(),
-                isRead: false,
-                isStarred: true,
-                category: .actionRequired,
-                aiSummary: AISummary(
-                    tldr: "Sophie attend ta validation urgente sur l'architecture Liquid Glass et les perfs Apple Intelligence avant 15h.",
-                    keyPoints: [
-                        "Point 1 : Temps d'inférence de l'IA sur iPhone 16 Pro",
-                        "Point 2 : Gestion du cache IMAP (Yahoo & Infomaniak)",
-                        "Deadline : Réunion de pilotage à 15h00"
-                    ],
-                    actionItems: [
-                        EmailActionItem(title: "Valider les perfs IA locale et cache IMAP", isCompleted: false, dueDate: Calendar.current.date(byAdding: .hour, value: 3, to: Date()))
-                    ],
-                    sentiment: .urgent,
-                    estimatedReadingTimeSeconds: 45,
-                    securityScore: 0.99
-                ),
-                smartReplies: [
-                    SmartReply(title: "C'est validé, go !", fullResponseText: "Bonjour Sophie,\n\nJ'ai examiné la spec, tout est parfait ! Feu vert pour lancer le sprint. On fait un point rapide à 15h comme prévu.\n\nFlorian"),
-                    SmartReply(title: "Je regarde avant 14h30", fullResponseText: "Hello Sophie,\n\nBien noté ! Je me pose dessus tout de suite et je te fais mes retours précis avant 14h30.\n\nÀ tout à l'heure."),
-                    SmartReply(title: "Décaler le point de 15h", fullResponseText: "Bonjour Sophie,\n\nPourrais-t-on décaler notre réunion à 16h afin que j'aie le temps de tester les benchs CoreML en conditions réelles ?\n\nMerci !")
-                ]
-            ),
-            
-            // 2. Receipts & Invoices (iCloud)
-            EmailMessage(
-                accountId: icloud.id,
-                provider: .icloud,
-                senderName: "Apple Store",
-                senderEmail: "no_reply@email.apple.com",
-                recipientEmail: icloud.emailAddress,
-                subject: "🧾 Votre reçu de commande Apple N° W894218902",
-                preview: "Merci pour votre achat : iPhone 16 Pro Max 512 Go Titane Naturel",
-                bodyContent: """
-                Chère cliente, Cher client,
-                
-                Nous vous remercions pour votre commande effectuée sur l'Apple Store en ligne.
-                
-                Récapitulatif de votre commande :
-                - Article : iPhone 16 Pro Max 512 Go Titane Naturel
-                - Montant total TTC : 1 609,00 €
-                - Moyen de paiement : Apple Pay (Visa terminée par 9042)
-                - Date estimée de livraison : Mercredi 22 Octobre
-                
-                La facture au format électronique conforme est jointe au présent courriel.
-                """,
-                timestamp: Calendar.current.date(byAdding: .hour, value: -2, to: Date()) ?? Date(),
-                isRead: false,
-                isStarred: false,
-                attachments: [
-                    EmailAttachment(filename: "Facture_Apple_W894218902.pdf", fileSizeBytes: 420_000, fileType: "pdf")
-                ],
-                category: .receipts,
-                aiSummary: AISummary(
-                    tldr: "Facture Apple Store acquittée de 1 609,00 € pour un iPhone 16 Pro Max. Livraison prévue le 22 Octobre.",
-                    keyPoints: ["Commande confirmée et payée via Apple Pay", "Livraison estimée le 22 Octobre", "Facture PDF de 420 Ko en pièce jointe"],
-                    actionItems: [EmailActionItem(title: "Sauvegarder la facture pour garantie / compta", isCompleted: false)],
-                    sentiment: .positive,
-                    estimatedReadingTimeSeconds: 20,
-                    securityScore: 1.0
-                ),
-                smartReplies: [
-                    SmartReply(title: "Suivre la livraison", fullResponseText: "Ouvrir le suivi de livraison transporteur."),
-                    SmartReply(title: "Transférer au dossier Achats", fullResponseText: "Archiver automatiquement la facture.")
-                ]
-            ),
-            
-            // 3. Infomaniak ikmail (Hosting & Privacy)
-            EmailMessage(
-                accountId: ikmail.id,
-                provider: .ikmail,
-                senderName: "Infomaniak Support & Cloud",
-                senderEmail: "support@infomaniak.com",
-                recipientEmail: ikmail.emailAddress,
-                subject: "🛡️ Renouvellement de votre Suite Éthique & Boîte ikmail",
-                preview: "Votre stockage kDrive 2 To et vos adresses @ik.me sont renouvelés avec succès.",
-                bodyContent: """
-                Bonjour Florian,
-                
-                Nous vous confirmons le bon renouvellement de vos services hébergés en Suisse au cœur de nos datacenters écologiques :
-                
-                - Adresse mail souveraine et chiffrée : contact@entreprise.ik.me
-                - Espace de stockage kDrive : 2 To (utilisé à 34%)
-                - Filtres anti-spam IA et sécurité zéro-connaissance activés.
-                
-                Aucune action n'est requise de votre part, le prélèvement a été opéré via votre moyen de paiement habituel.
-                
-                Merci de faire confiance à un cloud indépendant et respectueux de la vie privée !
-                
-                L'équipe Infomaniak
-                """,
-                timestamp: Calendar.current.date(byAdding: .hour, value: -6, to: Date()) ?? Date(),
-                isRead: true,
-                isStarred: true,
-                category: .vip,
-                aiSummary: AISummary(
-                    tldr: "Renouvellement automatique réussi de votre boîte mail Infomaniak et kDrive 2 To en Suisse.",
-                    keyPoints: ["Services sécurisés et chiffrés", "Aucune action nécessaire, prélèvement automatique effectué"],
-                    actionItems: [],
-                    sentiment: .positive,
-                    estimatedReadingTimeSeconds: 25,
-                    securityScore: 0.99
-                ),
-                smartReplies: [
-                    SmartReply(title: "Merci pour le service !", fullResponseText: "Bonjour,\n\nMerci beaucoup pour ces informations et pour la qualité de vos services hébergés en Suisse.\n\nBonne continuation.")
-                ]
-            ),
-            
-            // 4. Phishing Alert Flagged by AI (Yahoo)
-            EmailMessage(
-                accountId: yahoo.id,
-                provider: .yahoo,
-                senderName: "Securite-Banque-Alerte",
-                senderEmail: "alerte-urgent@verification-login-secure.xyz",
-                recipientEmail: yahoo.emailAddress,
-                subject: "⚠️ URGENT : Votre compte bancaire est suspendu sous 24h",
-                preview: "Cliquez immédiatement sur le lien pour confirmer votre identité bancaire...",
-                bodyContent: """
-                ATTENTION CLIENT,
-                
-                Une tentative inhabituelle a été détectée sur votre compte en ligne.
-                Pour des raisons de sécurité, votre accès sera définitivement bloqué d'ici 24 heures si vous ne procédez pas à la régularisation de votre profil.
-                
-                Cliquez sans attendre sur : http://secure-banque-update.xyz/verify-login
-                
-                Entrez votre identifiant et votre mot de passe pour lever la restriction.
-                
-                Direction Sécurité Bancaire.
-                """,
-                timestamp: Calendar.current.date(byAdding: .hour, value: -14, to: Date()) ?? Date(),
-                isRead: true,
-                isStarred: false,
-                category: .spam,
-                aiSummary: AISummary(
-                    tldr: "🚨 TENTATIVE DE PHISHING DÉTECTÉE ! Ne communiquez jamais vos identifiants.",
-                    keyPoints: [
-                        "Nom de domaine expéditeur frauduleux (.xyz)",
-                        "Demande suspecte de mot de passe",
-                        "Urgence artificielle (menace de suspension 24h)"
-                    ],
-                    actionItems: [
-                        EmailActionItem(title: "Supprimer définitivement et bloquer le domaine", isCompleted: false)
-                    ],
-                    sentiment: .suspicious,
-                    estimatedReadingTimeSeconds: 15,
-                    securityScore: 0.05,
-                    phishingExplanation: "Ce courriel provient d'un serveur malveillant non affilié à votre banque. L'IA a bloqué le chargement des images et des liens externes."
-                ),
-                smartReplies: []
-            ),
-            
-            // 5. Travel & Tickets (iCloud)
-            EmailMessage(
-                accountId: icloud.id,
-                provider: .icloud,
-                senderName: "Air France",
-                senderEmail: "reservations@airfrance.fr",
-                recipientEmail: icloud.emailAddress,
-                subject: "✈️ Votre réservation pour Tokyo (AF276) est confirmée",
-                preview: "Vol Paris CDG - Tokyo Haneda HND du 14 Novembre. Siège 12A.",
-                bodyContent: """
-                Bonjour Florian,
-                
-                Votre vol à destination de Tokyo Haneda est confirmé !
-                
-                Détails du vol :
-                - Vol : AF276
-                - Départ : Paris Charles de Gaulle (Terminal 2E) à 13h10
-                - Arrivée : Tokyo Haneda à 09h55 (+1 jour)
-                - Siège : 12A (Fenêtre, classe Premium Economy)
-                - Bagages : 2 x 23 kg inclus
-                
-                Vous pourrez vous enregistrer en ligne 30h avant le décollage.
-                Votre carte d'embarquement Apple Wallet sera disponible dès l'enregistrement.
-                
-                Très bon vol avec Air France !
-                """,
-                timestamp: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date(),
-                isRead: false,
-                isStarred: true,
-                attachments: [
-                    EmailAttachment(filename: "E-Billet_Tokyo_AF276.pdf", fileSizeBytes: 185_000, fileType: "pdf")
-                ],
-                category: .receipts,
-                aiSummary: AISummary(
-                    tldr: "Confirmation du vol direct Paris-Tokyo du 14 Novembre. Siège 12A réservé.",
-                    keyPoints: ["Vol AF276 au départ de CDG 2E à 13h10", "Enregistrement en ligne 30h avant le vol", "Ajout Apple Wallet disponible à l'enregistrement"],
-                    actionItems: [
-                        EmailActionItem(title: "Ajouter l'alerte d'enregistrement 30h avant le départ", isCompleted: false)
-                    ],
-                    sentiment: .positive,
-                    estimatedReadingTimeSeconds: 30,
-                    securityScore: 0.99
-                ),
-                smartReplies: [
-                    SmartReply(title: "Ajouter au calendrier", fullResponseText: "Créer l'événement dans le calendrier Apple."),
-                    SmartReply(title: "Partager l'itinéraire", fullResponseText: "Envoyer les horaires de vol aux proches.")
-                ]
-            ),
-            
-            // 6. Tech Weekly Newsletter (Gmail)
-            EmailMessage(
-                accountId: gmail.id,
-                provider: .gmail,
-                senderName: "SwiftUI & AI Digest",
-                senderEmail: "weekly@swiftuicrafters.com",
-                recipientEmail: gmail.emailAddress,
-                subject: "📰 Nouveautés Liquid Glass, iOS 18 Shaders et Apple Intelligence",
-                preview: "Comment concevoir des interfaces ultra-fluides avec le mesh gradient et les modèles locaux...",
-                bodyContent: """
-                Bienvenue dans l'édition #148 de votre veille hebdomadaire !
-                
-                Au sommaire cette semaine :
-                1. Les secrets de l'effet 'Liquid Glass' : Combinaison de .ultraThinMaterial, réfraction de la lumière et Spring animations dynamiques.
-                2. Intégrer les modèles LLM locaux sur iPhone sans impacter l'autonomie de la batterie.
-                3. Comment Infomaniak et d'autres acteurs respectueux de la vie privée intègrent désormais des API IA zero-knowledge.
-                
-                Bonne lecture à tous les passionnés d'ergonomie Apple !
-                """,
-                timestamp: Calendar.current.date(byAdding: .day, value: -2, to: Date()) ?? Date(),
-                isRead: true,
-                isStarred: false,
-                category: .newsletters,
-                aiSummary: AISummary(
-                    tldr: "Newsletter technique axée sur les interfaces Liquid Glass et l'intégration d'IA locale sur iOS.",
-                    keyPoints: ["Recette des shaders et reflets de verre", "Optimisation de l'autonomie avec l'IA locale"],
-                    actionItems: [],
-                    sentiment: .neutral,
-                    estimatedReadingTimeSeconds: 120,
-                    securityScore: 0.98
-                ),
-                smartReplies: []
-            )
-        ]
-        
-        self.emails = sampleList
+    public func persistAccounts() {
+        if let encoded = try? JSONEncoder().encode(accounts) {
+            UserDefaults.standard.set(encoded, forKey: accountsStorageKey)
+        }
+        // Also update App Group shared storage for WidgetKit
+        let sharedDefaults = UserDefaults(suiteName: "group.com.liquidmail.app")
+        sharedDefaults?.set(emails.filter { !$0.isRead }.count, forKey: "unreadTotal")
+        sharedDefaults?.set(emails.filter { $0.category == .actionRequired && !$0.isRead }.count, forKey: "urgentCount")
+    }
+    
+    public func persistEmails() {
+        if let encoded = try? JSONEncoder().encode(emails) {
+            UserDefaults.standard.set(encoded, forKey: emailsStorageKey)
+        }
+        let sharedDefaults = UserDefaults(suiteName: "group.com.liquidmail.app")
+        sharedDefaults?.set(emails.filter { !$0.isRead }.count, forKey: "unreadTotal")
+        sharedDefaults?.set(emails.filter { $0.category == .actionRequired && !$0.isRead }.count, forKey: "urgentCount")
+        if let nextUrgent = emails.first(where: { $0.category == .actionRequired && !$0.isRead }) {
+            sharedDefaults?.set(nextUrgent.subject, forKey: "nextUrgentTitle")
+            sharedDefaults?.set(nextUrgent.senderName, forKey: "nextUrgentSender")
+        }
     }
     
     // MARK: - Filtered Emails Computed Property
@@ -364,6 +101,7 @@ public class MailStore: ObservableObject {
     public func toggleStar(for email: EmailMessage) {
         if let idx = emails.firstIndex(where: { $0.id == email.id }) {
             emails[idx].isStarred.toggle()
+            persistEmails()
             Haptics.light()
         }
     }
@@ -371,6 +109,7 @@ public class MailStore: ObservableObject {
     public func toggleRead(for email: EmailMessage) {
         if let idx = emails.firstIndex(where: { $0.id == email.id }) {
             emails[idx].isRead.toggle()
+            persistEmails()
             Haptics.light()
         }
     }
@@ -378,12 +117,14 @@ public class MailStore: ObservableObject {
     public func markAsRead(emailId: UUID) {
         if let idx = emails.firstIndex(where: { $0.id == emailId }) {
             emails[idx].isRead = true
+            persistEmails()
         }
     }
     
     public func archive(email: EmailMessage) {
         if let idx = emails.firstIndex(where: { $0.id == email.id }) {
             emails[idx].isArchived = true
+            persistEmails()
             Haptics.medium()
         }
     }
@@ -391,6 +132,7 @@ public class MailStore: ObservableObject {
     public func delete(email: EmailMessage) {
         if let idx = emails.firstIndex(where: { $0.id == email.id }) {
             emails.remove(at: idx)
+            persistEmails()
             Haptics.warning()
         }
     }
@@ -399,6 +141,7 @@ public class MailStore: ObservableObject {
         if let emailIdx = emails.firstIndex(where: { $0.id == emailId }) {
             if let itemIdx = emails[emailIdx].aiSummary.actionItems.firstIndex(where: { $0.id == actionItemId }) {
                 emails[emailIdx].aiSummary.actionItems[itemIdx].isCompleted.toggle()
+                persistEmails()
                 Haptics.success()
             }
         }
@@ -425,7 +168,6 @@ public class MailStore: ObservableObject {
                     p.remainingSeconds -= 1
                     self.pendingSend = p
                 } else {
-                    // Send permanently
                     self.finalizeSend()
                 }
             }
@@ -441,7 +183,6 @@ public class MailStore: ObservableObject {
         undoTimer?.cancel()
         guard let p = pendingSend else { return }
         
-        // Add to sent messages in list
         let sentMessage = EmailMessage(
             accountId: p.account.id,
             provider: p.account.provider,
@@ -457,13 +198,29 @@ public class MailStore: ObservableObject {
             aiSummary: AISummary(tldr: "E-mail envoyé avec succès.", sentiment: .positive)
         )
         self.emails.insert(sentMessage, at: 0)
+        persistEmails()
         self.pendingSend = nil
     }
     
-    // MARK: - Add New Account
+    // MARK: - Add / Remove Account
     public func addAccount(name: String, email: String, provider: EmailProvider) {
         let newAcc = EmailAccount(name: name, emailAddress: email, provider: provider, isActive: true)
         self.accounts.append(newAcc)
+        persistAccounts()
         Haptics.success()
+    }
+    
+    public func removeAccount(at indexSet: IndexSet) {
+        self.accounts.remove(atOffsets: indexSet)
+        persistAccounts()
+        Haptics.warning()
+    }
+    
+    // MARK: - Synchronize Mail
+    public func refreshInbox() async {
+        await MainActor.run { isSyncing = true }
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        await MainActor.run { isSyncing = false }
+        Haptics.light()
     }
 }
