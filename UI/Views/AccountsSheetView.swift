@@ -67,64 +67,66 @@ public struct AccountsSheetView: View {
                                 .padding(.horizontal, 4)
                         } else {
                             ForEach(mailStore.accounts) { acc in
-                                Button(action: {
-                                    Haptics.light()
-                                    mailStore.selectedAccount = acc
-                                    dismiss()
-                                }) {
-                                    HStack(spacing: 14) {
-                                        ProviderBrandBadge(provider: acc.provider, size: 36)
-                                        
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            Text(acc.name)
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .foregroundColor(.primary)
+                                HStack(spacing: 12) {
+                                    Button(action: {
+                                        Haptics.light()
+                                        mailStore.selectedAccount = acc
+                                        dismiss()
+                                    }) {
+                                        HStack(spacing: 14) {
+                                            ProviderBrandBadge(provider: acc.provider, size: 36)
                                             
-                                            Text(acc.emailAddress)
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-                                            
-                                            HStack(spacing: 4) {
-                                                Circle().fill(Color.green).frame(width: 6, height: 6)
-                                                Text("En direct • IMAP \(acc.provider.imapHost)")
-                                                    .font(.system(size: 11))
-                                                    .foregroundColor(.secondary.opacity(0.8))
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                Text(acc.name)
+                                                    .font(.system(size: 14, weight: .semibold))
+                                                    .foregroundColor(.primary)
+                                                
+                                                Text(acc.emailAddress)
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(.secondary)
+                                                
+                                                HStack(spacing: 4) {
+                                                    Circle().fill(Color.green).frame(width: 6, height: 6)
+                                                    Text("En direct • IMAP \(acc.provider.imapHost)")
+                                                        .font(.system(size: 11))
+                                                        .foregroundColor(.secondary.opacity(0.8))
+                                                }
                                             }
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        if mailStore.selectedAccount?.id == acc.id {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundColor(.cyan)
-                                                .font(.system(size: 18))
-                                        }
-                                        
-                                        Button(action: {
-                                            mailStore.accounts.removeAll(where: { $0.id == acc.id })
-                                            mailStore.emails.removeAll(where: { $0.accountId == acc.id })
+                                            
+                                            Spacer()
+                                            
                                             if mailStore.selectedAccount?.id == acc.id {
-                                                mailStore.selectedAccount = nil
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundColor(.cyan)
+                                                    .font(.system(size: 18))
                                             }
-                                            mailStore.persistAccounts()
-                                            mailStore.persistEmails()
-                                            Haptics.warning()
-                                        }) {
-                                            Image(systemName: "trash")
-                                                .foregroundColor(.red.opacity(0.7))
-                                                .font(.system(size: 14))
-                                                .padding(6)
                                         }
-                                        .buttonStyle(.plain)
                                     }
-                                    .padding(14)
-                                    .liquidGlass(
-                                        cornerRadius: 16,
-                                        borderOpacity: mailStore.selectedAccount?.id == acc.id ? 0.45 : 0.15,
-                                        glowColor: .cyan
-                                    )
+                                    .buttonStyle(.plain)
+                                    
+                                    Button(action: {
+                                        mailStore.accounts.removeAll(where: { $0.id == acc.id })
+                                        mailStore.emails.removeAll(where: { $0.accountId == acc.id })
+                                        if mailStore.selectedAccount?.id == acc.id {
+                                            mailStore.selectedAccount = nil
+                                        }
+                                        mailStore.persistAccounts()
+                                        mailStore.persistEmails()
+                                        Haptics.warning()
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .foregroundColor(.red.opacity(0.7))
+                                            .font(.system(size: 14))
+                                            .padding(6)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
+                                .padding(14)
+                                .liquidGlass(
+                                    cornerRadius: 16,
+                                    borderOpacity: mailStore.selectedAccount?.id == acc.id ? 0.45 : 0.15,
+                                    glowColor: .cyan
+                                )
                             }
                         }
                         
@@ -427,7 +429,7 @@ public struct AddAccountView: View {
             timestamp: Date(),
             isRead: false,
             isStarred: false,
-            category: .important,
+            category: .actionRequired,
             aiSummary: AISummary(tldr: "Compte enregistré.", sentiment: .neutral)
         )
         mailStore.emails.append(welcome)
