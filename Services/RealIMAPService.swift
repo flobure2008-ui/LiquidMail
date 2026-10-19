@@ -1,6 +1,5 @@
 import Foundation
 import Network
-import Security
 
 // MARK: - Real IMAP Connection & Sync Service with Full TLS & SNI Support
 public class RealIMAPService {
@@ -39,20 +38,10 @@ public class RealIMAPService {
         }
         
         let host = NWEndpoint.Host(serverConfig.imapHost)
-        let port = NWEndpoint.Port(rawValue: UInt16(serverConfig.imapPort)) ?? .imaps
+        let portNumber = UInt16(serverConfig.imapPort) > 0 ? UInt16(serverConfig.imapPort) : (serverConfig.useSSL ? 993 : 143)
+        let port = NWEndpoint.Port(rawValue: portNumber) ?? (serverConfig.useSSL ? .imaps : NWEndpoint.Port(integerLiteral: 143))
         
-        // TLS parameters for Port 993 (IMAPS) with SNI
-        let tlsOptions = NWProtocolTLS.Options()
-        
-        // Set SNI (Server Name Indication) essential for cloud servers (Google, Yahoo, Apple, OVH...)
-        sec_protocol_options_set_tls_server_name(tlsOptions.securityProtocolOptions, serverConfig.imapHost)
-        
-        // Allow standard secure TLS versions
-        sec_protocol_options_set_min_tls_protocol_version(tlsOptions.securityProtocolOptions, .TLSv12)
-        
-        let tcpOptions = NWProtocolTCP.Options()
-        let parameters = NWParameters(tls: tlsOptions, tcp: tcpOptions)
-        
+        let parameters: NWParameters = serverConfig.useSSL ? .tls : .tcp
         let connection = NWConnection(host: host, port: port, using: parameters)
         
         return try await withCheckedThrowingContinuation { continuation in
