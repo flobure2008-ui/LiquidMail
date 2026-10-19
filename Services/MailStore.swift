@@ -210,6 +210,17 @@ public class MailStore: ObservableObject {
         Haptics.success()
     }
     
+    public func removeAccount(id: UUID) {
+        self.accounts.removeAll(where: { $0.id == id })
+        self.emails.removeAll(where: { $0.accountId == id })
+        if self.selectedAccount?.id == id {
+            self.selectedAccount = nil
+        }
+        persistAccounts()
+        persistEmails()
+        Haptics.warning()
+    }
+
     public func removeAccount(at indexSet: IndexSet) {
         self.accounts.remove(atOffsets: indexSet)
         persistAccounts()
@@ -219,8 +230,26 @@ public class MailStore: ObservableObject {
     // MARK: - Synchronize Mail
     public func refreshInbox() async {
         await MainActor.run { isSyncing = true }
-        try? await Task.sleep(nanoseconds: 800_000_000)
-        await MainActor.run { isSyncing = false }
+        for account in accounts {
+            if let pwd = KeychainManager.shared.get(key: "account_pwd_\(account.emailAddress)") {
+                let config = MailAutoDiscovery.shared.discover(email: account.emailAddress)
+                if let fetched = try? await RealIMAPService.shared.authenticateAndFetch(email: account.emailAddress, password: pwd, serverConfig: config) {
+                    await MainActor.run {
+                        for email in fetched {
+                            if !self.emails.contains(where: { $0.id == email.id || ($0.subject == email.subject && $0.senderEmail == email.senderEmail) }) {
+                                var mod = email
+                                mod.accountId = account.id
+                                self.emails.insert(mod, at: 0)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        await MainActor.run {
+            persistEmails()
+            isSyncing = false
+        }
         Haptics.light()
     }
 }

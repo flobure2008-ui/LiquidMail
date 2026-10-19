@@ -5,6 +5,8 @@ public struct AccountsSheetView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var showingAddAccountModal: Bool = false
+    @State private var accountToDelete: EmailAccount? = nil
+    @State private var showingDeleteAlert: Bool = false
     
     public init() {}
     
@@ -67,47 +69,61 @@ public struct AccountsSheetView: View {
                                 .padding(.horizontal, 4)
                         } else {
                             ForEach(mailStore.accounts) { acc in
-                                Button(action: {
-                                    Haptics.light()
-                                    mailStore.selectedAccount = acc
-                                    dismiss()
-                                }) {
-                                    HStack(spacing: 14) {
-                                        ProviderBrandBadge(provider: acc.provider, size: 36)
-                                        
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            Text(acc.name)
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .foregroundColor(.primary)
+                                HStack(spacing: 12) {
+                                    Button(action: {
+                                        Haptics.light()
+                                        mailStore.selectedAccount = acc
+                                        dismiss()
+                                    }) {
+                                        HStack(spacing: 14) {
+                                            ProviderBrandBadge(provider: acc.provider, size: 36)
                                             
-                                            Text(acc.emailAddress)
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                Text(acc.name)
+                                                    .font(.system(size: 14, weight: .semibold))
+                                                    .foregroundColor(.primary)
+                                                
+                                                Text(acc.emailAddress)
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(.secondary)
+                                                
+                                                HStack(spacing: 4) {
+                                                    Circle().fill(Color.green).frame(width: 6, height: 6)
+                                                    Text("En direct • IMAP \(acc.provider.imapHost)")
+                                                        .font(.system(size: 11))
+                                                        .foregroundColor(.secondary.opacity(0.8))
+                                                }
+                                            }
                                             
-                                            HStack(spacing: 4) {
-                                                Circle().fill(Color.green).frame(width: 6, height: 6)
-                                                Text("En direct • IMAP \(acc.provider.imapHost)")
-                                                    .font(.system(size: 11))
-                                                    .foregroundColor(.secondary.opacity(0.8))
+                                            Spacer()
+                                            
+                                            if mailStore.selectedAccount?.id == acc.id {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundColor(.cyan)
+                                                    .font(.system(size: 18))
                                             }
                                         }
-                                        
-                                        Spacer()
-                                        
-                                        if mailStore.selectedAccount?.id == acc.id {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundColor(.cyan)
-                                                .font(.system(size: 18))
-                                        }
                                     }
-                                    .padding(14)
-                                    .liquidGlass(
-                                        cornerRadius: 16,
-                                        borderOpacity: mailStore.selectedAccount?.id == acc.id ? 0.45 : 0.15,
-                                        glowColor: .cyan
-                                    )
+                                    .buttonStyle(.plain)
+                                    
+                                    // Delete button
+                                    Button(action: {
+                                        accountToDelete = acc
+                                        showingDeleteAlert = true
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.red.opacity(0.75))
+                                            .padding(8)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
+                                .padding(14)
+                                .liquidGlass(
+                                    cornerRadius: 16,
+                                    borderOpacity: mailStore.selectedAccount?.id == acc.id ? 0.45 : 0.15,
+                                    glowColor: .cyan
+                                )
                             }
                         }
                         
@@ -140,6 +156,14 @@ public struct AccountsSheetView: View {
                         .foregroundColor(.cyan)
                 }
             }
+            .alert("Supprimer le compte", isPresented: $showingDeleteAlert, presenting: accountToDelete) { acc in
+                Button("Supprimer", role: .destructive) {
+                    mailStore.removeAccount(id: acc.id)
+                }
+                Button("Annuler", role: .cancel) {}
+            } message: { acc in
+                Text("Voulez-vous supprimer le compte \(acc.emailAddress) et ses e-mails associés de LiquidMail ?")
+            }
             .sheet(isPresented: $showingAddAccountModal) {
                 AddAccountView()
                     .environmentObject(mailStore)
@@ -148,16 +172,23 @@ public struct AccountsSheetView: View {
     }
 }
 
-// MARK: - Add Account Sub-View with Real IMAP Connection
+// MARK: - Add Account Sub-View with Real IMAP Connection & Advanced Host Settings
 public struct AddAccountView: View {
     @EnvironmentObject var mailStore: MailStore
     @Environment(\.dismiss) private var dismiss
     
     @State private var selectedProvider: EmailProvider = .customImap
-    @State private var accountName: String = ""
     @State private var emailAddress: String = ""
     @State private var appPassword: String = ""
-    @State private var discoveredConfig: ServerConfig = ServerConfig(imapHost: "", smtpHost: "")
+    
+    // Server configuration state
+    @State private var imapHost: String = ""
+    @State private var imapPort: String = "993"
+    @State private var imapUseSSL: Bool = true
+    @State private var smtpHost: String = ""
+    @State private var smtpPort: String = "465"
+    @State private var showAdvancedSettings: Bool = false
+    
     @State private var isConnecting: Bool = false
     @State private var autoDiscoveryDetected: Bool = false
     @State private var errorMessage: String? = nil
@@ -177,7 +208,7 @@ public struct AddAccountView: View {
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.primary)
                             
-                            Text("LiquidMail se connecte directement et de façon sécurisée à vos serveurs de messagerie (Orange, Free, SFR, OVH, Gmail, iCloud, Yahoo, ikmail...).")
+                            Text("LiquidMail se connecte directement à vos serveurs de messagerie avec chiffrement TLS de bout en bout (Orange, Free, SFR, OVH, Gmail, iCloud, Yahoo, ikmail...).")
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)
                                 .lineSpacing(3)
@@ -198,6 +229,7 @@ public struct AddAccountView: View {
                                         .textContentType(.emailAddress)
                                         .keyboardType(.emailAddress)
                                         .autocapitalization(.none)
+                                        .disableAutocorrection(true)
                                         .onChange(of: emailAddress) { _, newVal in
                                             autoDetect(newVal)
                                         }
@@ -215,41 +247,113 @@ public struct AddAccountView: View {
                                     Image(systemName: "lock.fill")
                                         .foregroundColor(.cyan)
                                     SecureField("Mot de passe ou mot de passe d'app", text: $appPassword)
+                                        .autocapitalization(.none)
+                                        .disableAutocorrection(true)
                                 }
                                 .padding(12)
                                 .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.08)))
                             }
                         }
                         
-                        // Provider App Password hint
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "info.circle")
-                                    .foregroundColor(.cyan)
-                                Text("Astuce de connexion sécurisée")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(.cyan)
-                            }
-                            Text("Pour Gmail, Yahoo et iCloud, la sécurité exige un 'Mot de passe d'application' (généré en 30 secondes dans les paramètres de sécurité de votre compte Google, Apple ou Yahoo).")
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                                .lineSpacing(2)
-                        }
-                        .padding(12)
-                        .liquidGlass(cornerRadius: 14, borderOpacity: 0.20)
+                        // Provider-specific security banner (Google, Apple, Yahoo)
+                        providerSecurityBanner
                         
-                        // Auto-discovered host info
-                        if autoDiscoveryDetected {
+                        // Auto-detected server info pill
+                        if autoDiscoveryDetected && !imapHost.isEmpty {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(.green)
-                                Text("Serveur : \(discoveredConfig.imapHost):\(discoveredConfig.imapPort) (SSL)")
+                                Text("Serveur détecté : \(imapHost):\(imapPort) (TLS)")
                                     .font(.system(size: 12, design: .monospaced))
                                     .foregroundColor(.white)
                                 Spacer()
                             }
                             .padding(12)
                             .liquidGlass(cornerRadius: 12, borderOpacity: 0.35, glowColor: .green)
+                        }
+                        
+                        // Advanced Server Configuration Disclosure
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button(action: {
+                                withAnimation(.spring()) {
+                                    showAdvancedSettings.toggle()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "slider.horizontal.3")
+                                        .foregroundColor(.cyan)
+                                    Text("Paramètres avancés du serveur (optionnel)")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(.cyan)
+                                    Spacer()
+                                    Image(systemName: showAdvancedSettings ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(12)
+                                .liquidGlass(cornerRadius: 12, borderOpacity: 0.15)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            if showAdvancedSettings {
+                                VStack(spacing: 10) {
+                                    HStack {
+                                        Text("Serveur IMAP :")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                            .frame(width: 100, alignment: .leading)
+                                        TextField("ex: imap.mon-domaine.com", text: $imapHost)
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .autocapitalization(.none)
+                                            .disableAutocorrection(true)
+                                            .padding(8)
+                                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.06)))
+                                    }
+                                    
+                                    HStack {
+                                        Text("Port IMAP :")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                            .frame(width: 100, alignment: .leading)
+                                        TextField("993", text: $imapPort)
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .keyboardType(.numberPad)
+                                            .padding(8)
+                                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.06)))
+                                    }
+                                    
+                                    Toggle("Chiffrement SSL / TLS", isOn: $imapUseSSL)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                    
+                                    HStack {
+                                        Text("Serveur SMTP :")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                            .frame(width: 100, alignment: .leading)
+                                        TextField("ex: smtp.mon-domaine.com", text: $smtpHost)
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .autocapitalization(.none)
+                                            .disableAutocorrection(true)
+                                            .padding(8)
+                                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.06)))
+                                    }
+                                    
+                                    HStack {
+                                        Text("Port SMTP :")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                            .frame(width: 100, alignment: .leading)
+                                        TextField("465", text: $smtpPort)
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .keyboardType(.numberPad)
+                                            .padding(8)
+                                            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.06)))
+                                    }
+                                }
+                                .padding(12)
+                                .liquidGlass(cornerRadius: 12, borderOpacity: 0.15)
+                            }
                         }
                         
                         Button(action: {
@@ -263,6 +367,8 @@ public struct AddAccountView: View {
                                     Text(connectionStepText)
                                         .font(.system(size: 14, weight: .bold))
                                 } else {
+                                    Image(systemName: "lock.shield.fill")
+                                        .font(.system(size: 14))
                                     Text("Connecter le compte")
                                         .font(.system(size: 15, weight: .bold))
                                 }
@@ -298,11 +404,86 @@ public struct AddAccountView: View {
         }
     }
     
+    // MARK: - Contextual Provider Security Banner
+    @ViewBuilder
+    private var providerSecurityBanner: some View {
+        let lower = emailAddress.lowercased()
+        if lower.contains("gmail.com") {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                    Text("Exigence de sécurité Google / Gmail")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.orange)
+                }
+                Text("Google refuse votre mot de passe habituel par IMAP. Vous devez utiliser un **Mot de passe d'application** (code à 16 lettres) généré sur votre compte Google :\n• Rendez-vous sur myaccount.google.com\n• Allez dans Sécurité > Validation en 2 étapes\n• Cliquez sur 'Mots de passe des applications'\n• Copiez le code à 16 lettres et collez-le ci-dessus.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.9))
+                    .lineSpacing(2)
+            }
+            .padding(12)
+            .liquidGlass(cornerRadius: 14, borderOpacity: 0.35, glowColor: .orange)
+        } else if lower.contains("icloud.com") || lower.contains("me.com") {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "applelogo")
+                        .foregroundColor(.cyan)
+                    Text("Exigence de sécurité Apple iCloud")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.cyan)
+                }
+                Text("Apple exige un **Mot de passe pour application tierce** :\n• Rendez-vous sur appleid.apple.com\n• Rubrique Connexion et sécurité\n• Cliquez sur 'Mots de passe pour application tierce'\n• Générez un mot de passe et collez-le ci-dessus.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.9))
+                    .lineSpacing(2)
+            }
+            .padding(12)
+            .liquidGlass(cornerRadius: 14, borderOpacity: 0.35, glowColor: .cyan)
+        } else if lower.contains("yahoo.") {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.purple)
+                    Text("Exigence de sécurité Yahoo")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.purple)
+                }
+                Text("Yahoo exige un **Mot de passe d'application** :\n• Connectez-vous sur login.yahoo.com/account/security\n• Cliquez sur 'Générer un mot de passe d'application'\n• Copiez le code et collez-le ci-dessus.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.9))
+                    .lineSpacing(2)
+            }
+            .padding(12)
+            .liquidGlass(cornerRadius: 14, borderOpacity: 0.35, glowColor: .purple)
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.circle.fill")
+                        .foregroundColor(.cyan)
+                    Text("Connexion directe & sécurisée")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.cyan)
+                }
+                Text("Pour Infomaniak, Orange, Free, SFR, OVH et vos serveurs personnalisés, vos identifiants habituels fonctionnent directement avec le chiffrement TLS.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineSpacing(2)
+            }
+            .padding(12)
+            .liquidGlass(cornerRadius: 14, borderOpacity: 0.20)
+        }
+    }
+    
     private func autoDetect(_ text: String) {
         if text.contains("@") && text.contains(".") {
             let config = MailAutoDiscovery.shared.discover(email: text)
             withAnimation(.spring()) {
-                self.discoveredConfig = config
+                self.imapHost = config.imapHost
+                self.imapPort = "\(config.imapPort)"
+                self.smtpHost = config.smtpHost
+                self.smtpPort = "\(config.smtpPort)"
+                self.imapUseSSL = config.useSSL
                 self.autoDiscoveryDetected = true
                 
                 let lower = text.lowercased()
@@ -325,35 +506,75 @@ public struct AddAccountView: View {
     
     private func performRealConnection() async {
         Haptics.medium()
+        
+        let trimmedEmail = emailAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPass = appPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        var currentHost = imapHost.trimmingCharacters(in: .whitespacesAndNewlines)
+        if currentHost.isEmpty {
+            let discovered = MailAutoDiscovery.shared.discover(email: trimmedEmail)
+            currentHost = discovered.imapHost
+            if currentHost.isEmpty {
+                currentHost = "imap." + (trimmedEmail.components(separatedBy: "@").last ?? "")
+            }
+            imapHost = currentHost
+        }
+        
+        let portInt = Int(imapPort) ?? 993
+        let finalConfig = ServerConfig(
+            imapHost: currentHost,
+            imapPort: portInt,
+            smtpHost: smtpHost.isEmpty ? "smtp." + (trimmedEmail.components(separatedBy: "@").last ?? "") : smtpHost,
+            smtpPort: Int(smtpPort) ?? 465,
+            useSSL: imapUseSSL
+        )
+        
         await MainActor.run {
             isConnecting = true
-            connectionStepText = "Connexion à \(discoveredConfig.imapHost)..."
+            connectionStepText = "Connexion sécurisée à \(currentHost)..."
         }
         
         do {
             let fetchedEmails = try await RealIMAPService.shared.authenticateAndFetch(
-                email: emailAddress,
-                password: appPassword,
-                serverConfig: discoveredConfig
+                email: trimmedEmail,
+                password: trimmedPass,
+                serverConfig: finalConfig
             )
             
             await MainActor.run {
-                // Save password securely in Keychain
-                KeychainManager.shared.save(key: "account_pwd_\(emailAddress)", data: appPassword)
+                KeychainManager.shared.save(key: "account_pwd_\(trimmedEmail)", data: trimmedPass)
                 
-                let name = emailAddress.components(separatedBy: "@").first?.capitalized ?? "Mon Compte"
-                let newAcc = EmailAccount(name: name, emailAddress: emailAddress, provider: selectedProvider, isActive: true)
+                let name = trimmedEmail.components(separatedBy: "@").first?.capitalized ?? "Mon Compte"
+                let newAcc = EmailAccount(name: name, emailAddress: trimmedEmail, provider: selectedProvider, isActive: true)
                 mailStore.accounts.append(newAcc)
                 
-                // Add real messages
-                for email in fetchedEmails {
-                    var modified = email
-                    modified.accountId = newAcc.id
-                    mailStore.emails.append(modified)
+                if !fetchedEmails.isEmpty {
+                    for email in fetchedEmails {
+                        var modified = email
+                        modified.accountId = newAcc.id
+                        mailStore.emails.append(modified)
+                    }
+                } else {
+                    let welcomeMsg = EmailMessage(
+                        accountId: newAcc.id,
+                        provider: selectedProvider,
+                        senderName: "Assistant LiquidMail",
+                        senderEmail: "assistant@liquidmail.app",
+                        recipientEmail: trimmedEmail,
+                        subject: "Bienvenue sur LiquidMail ✨",
+                        preview: "Votre compte \(trimmedEmail) est connecté avec succès en direct via IMAP TLS.",
+                        bodyContent: "Félicitations !\n\nVotre boîte de messagerie (\(trimmedEmail)) est désormais connectée à LiquidMail avec le chiffrement TLS direct.\n\nVous pouvez dès à présent synchroniser vos messages, profiter du triage intelligent par IA et composer de nouveaux e-mails.",
+                        timestamp: Date(),
+                        isRead: false,
+                        isStarred: true,
+                        category: .vip,
+                        aiSummary: AISummary(tldr: "Boîte \(trimmedEmail) connectée et prête à l'emploi.", sentiment: .positive)
+                    )
+                    mailStore.emails.insert(welcomeMsg, at: 0)
                 }
+                
                 mailStore.persistAccounts()
                 mailStore.persistEmails()
-                
                 isConnecting = false
                 Haptics.success()
                 dismiss()
@@ -369,9 +590,31 @@ public struct AddAccountView: View {
     }
     
     private func saveAccountOffline() {
-        KeychainManager.shared.save(key: "account_pwd_\(emailAddress)", data: appPassword)
-        let name = emailAddress.components(separatedBy: "@").first?.capitalized ?? "Mon Compte"
-        mailStore.addAccount(name: name, email: emailAddress, provider: selectedProvider)
+        let trimmedEmail = emailAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPass = appPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        KeychainManager.shared.save(key: "account_pwd_\(trimmedEmail)", data: trimmedPass)
+        let name = trimmedEmail.components(separatedBy: "@").first?.capitalized ?? "Mon Compte"
+        let newAcc = EmailAccount(name: name, emailAddress: trimmedEmail, provider: selectedProvider, isActive: true)
+        mailStore.accounts.append(newAcc)
+        
+        let offlineWelcome = EmailMessage(
+            accountId: newAcc.id,
+            provider: selectedProvider,
+            senderName: "Assistant LiquidMail",
+            senderEmail: "assistant@liquidmail.app",
+            recipientEmail: trimmedEmail,
+            subject: "Compte \(trimmedEmail) enregistré",
+            preview: "Compte configuré. Vos messages se synchroniseront dès la prochaine connexion réseau.",
+            bodyContent: "Votre compte a été enregistré sur cet appareil.\n\nServeur IMAP configuré : \(imapHost.isEmpty ? "Automatique" : imapHost).\n\nSi vos identifiants requièrent un Mot de passe d'application (Gmail, Yahoo, Apple), assurez-vous de l'avoir généré dans les paramètres de sécurité de votre fournisseur.",
+            timestamp: Date(),
+            isRead: false,
+            isStarred: false,
+            category: .important,
+            aiSummary: AISummary(tldr: "Compte enregistré localement.", sentiment: .neutral)
+        )
+        mailStore.emails.insert(offlineWelcome, at: 0)
+        mailStore.persistAccounts()
+        mailStore.persistEmails()
         dismiss()
     }
 }

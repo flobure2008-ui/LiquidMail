@@ -1,7 +1,8 @@
 import Foundation
 import Network
+import Security
 
-// MARK: - Real IMAP Connection & Sync Service
+// MARK: - Real IMAP Connection & Sync Service with Full TLS & SNI Support
 public class RealIMAPService {
     public static let shared = RealIMAPService()
     
@@ -33,11 +34,22 @@ public class RealIMAPService {
         password: String,
         serverConfig: ServerConfig
     ) async throws -> [EmailMessage] {
+        guard !serverConfig.imapHost.isEmpty else {
+            throw IMAPError.connectionFailed("Nom d'hôte IMAP vide.")
+        }
+        
         let host = NWEndpoint.Host(serverConfig.imapHost)
         let port = NWEndpoint.Port(rawValue: UInt16(serverConfig.imapPort)) ?? .imaps
         
-        // TLS parameters for Port 993 (IMAPS)
+        // TLS parameters for Port 993 (IMAPS) with SNI
         let tlsOptions = NWProtocolTLS.Options()
+        
+        // Set SNI (Server Name Indication) essential for cloud servers (Google, Yahoo, Apple, OVH...)
+        sec_protocol_options_set_tls_server_name(tlsOptions.securityProtocolOptions, serverConfig.imapHost)
+        
+        // Allow standard secure TLS versions
+        sec_protocol_options_set_min_tls_protocol_version(tlsOptions.securityProtocolOptions, .TLSv12)
+        
         let tcpOptions = NWProtocolTCP.Options()
         let parameters = NWParameters(tls: tlsOptions, tcp: tcpOptions)
         
@@ -61,7 +73,6 @@ public class RealIMAPService {
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
-                    // Connection established, start IMAP dialog
                     self.performIMAPHandshake(
                         connection: connection,
                         email: email,
@@ -104,7 +115,6 @@ public class RealIMAPService {
                 }
                 
                 // Step 2: Send LOGIN command
-                // Note: Escaping quotes in password
                 let escapedPassword = password.replacingOccurrences(of: "\"", with: "\\\"")
                 let loginCmd = "A01 LOGIN \"\(email)\" \"\(escapedPassword)\"\r\n"
                 
@@ -122,8 +132,13 @@ public class RealIMAPService {
                         case .success(let loginResponse):
                             if loginResponse.contains("A01 NO") || loginResponse.contains("A01 BAD") {
                                 var msg = "Identifiant ou mot de passe incorrect."
-                                if email.contains("gmail.com") || email.contains("yahoo.") || email.contains("icloud.com") {
-                                    msg = "Veuillez utiliser un Mot de passe d'application généré dans les paramètres de sécurité de votre compte (exigé par \(email.split(separator: "@").last ?? "ce fournisseur"))."
+                                let lower = email.lowercased()
+                                if lower.contains("gmail.com") {
+                                    msg = "Google exige un 'Mot de passe d'application' (16 lettres) généré sur myaccount.google.com > Sécurité > Mots de passe des applications."
+                                } else if lower.contains("yahoo.") {
+                                    msg = "Yahoo exige un 'Mot de passe d'application' généré sur login.yahoo.com/account/security."
+                                } else if lower.contains("icloud.com") || lower.contains("me.com") {
+                                    msg = "Apple exige un 'Mot de passe pour application tierce' généré sur appleid.apple.com."
                                 }
                                 completion(.failure(IMAPError.authenticationFailed(msg)))
                                 return
@@ -136,7 +151,7 @@ public class RealIMAPService {
                             
                             // Step 3: SELECT INBOX
                             let selectCmd = "A02 SELECT INBOX\r\n"
-                            self.sendCommand(connection: connection, command: selectCmd) { selectSendResult in
+                            self.sendCommand(connection: connection, command: selectCmd) { _ in
                                 self.readResponse(from: connection) { selectResult in
                                     // Step 4: FETCH recent messages
                                     let fetchCmd = "A03 FETCH 1:15 (UID FLAGS BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)])\r\n"
@@ -215,13 +230,12 @@ public class RealIMAPService {
             }
         }
         
-        return messages.reversed() // Most recent first
+        return messages.reversed()
     }
     
-    // MARK: - RFC 2047 MIME Header Decoder (ex: =?UTF-8?B?...?=)
+    // MARK: - RFC 2047 MIME Header Decoder
     private func decodeMIMERFC2047(_ input: String) -> String {
         guard input.contains("=?") && input.contains("?=") else { return input }
-        // Simple decoder fallback for common headers
         var decoded = input
         if let regex = try? NSRegularExpression(pattern: #"=\?([^?]+)\?([bBqQ])\?([^?]+)\?="#) {
             let matches = regex.matches(in: input, range: NSRange(input.startIndex..., in: input))

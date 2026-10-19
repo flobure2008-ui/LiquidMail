@@ -24,6 +24,11 @@
     <true/>
     <key>NSFaceIDUsageDescription</key>
     <string>LiquidMail utilise Face ID pour déverrouiller vos boîtes de messagerie sécurisées.</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>
