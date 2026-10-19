@@ -1,80 +1,60 @@
-# 🫧 LiquidMail — Client E-mail iPhone "Liquid Glass" & Intelligence Artificielle
+# 🫧 LiquidMail — Client E-mail Minimaliste Liquid Glass pour iPhone (iOS 17 & 18+)
 
-**LiquidMail** est une application iOS moderne conçue pour iPhone (iOS 17 & 18+) alliant le design iconique **Apple "Liquid Glass"** (matériaux translucides, réfraction de la lumière, dégradés d'ambiance dynamiques, micro-interactions haptiques) avec un moteur de tri et d'assistance propulsé par l'**Intelligence Artificielle (Apple Intelligence / On-Device Neural Engine)**.
+**LiquidMail** est une application iOS au **design épuré et minimaliste "Liquid Glass"** (verre translucide ultra-fin, reflets spéculaires soignés, typographie San Francisco aérée) intégrant la connexion universelle à n'importe quelle adresse e-mail et une **API IA** pour trier et résumer automatiquement vos courriels.
 
----
-
-## ✨ Points Clés & Fonctionnalités
-
-### 1. 🪟 Design Apple "Liquid Glass" & Glassmorphism
-- **Matériaux Translucides** : Utilisation de `.ultraThinMaterial` avec surcouches spéculaires irisées et reflets de lumière subtils.
-- **Mesh Gradients Fluides** : Arrière-plans ambiants animés avec 5 thèmes au choix : *Aurore Boréale, Obsidienne Minuit, Opale Nacrée, Quartz Rose, Liquid Cyber*.
-- **Dock Flottant Verre Liquide** : Barre d'onglets inférieure flottante avec badges de notifications et rebonds dynamiques (Spring animations).
-- **Retour Haptique Immersif** : Générateurs haptiques sur les gestes de glissement (swipes), les taps et les validations IA.
-
-### 2. 📬 Multi-Comptes & Fournisseurs E-mail Universels
-LiquidMail gère simultanément et de façon unifiée :
-- **☁️ iCloud Mail** : Synchronisation native Apple avec mot de passe d'application ou authentification Apple ID.
-- **🔴 Google Gmail & Workspace** : Prise en charge OAuth2 et IMAP/SMTP (`imap.gmail.com`).
-- **🟣 Yahoo Mail & myYahoo** : Détection automatique des flux Yahoo (`imap.mail.yahoo.com`).
-- **🟢 Infomaniak (ikmail & ik.me)** : Boîtes mails éthiques suisses souveraines chiffrées (`mail.infomaniak.com`).
-- **🔵 Microsoft Outlook / 365** : Prise en charge des comptes Microsoft.
-- **⚙️ IMAP / SMTP Personnalisé** : Connexion à n'importe quel hébergeur ou serveur privé.
-
-### 3. 🧠 Moteur d'IA & Triage Intelligent (Apple Intelligence Ready)
-- **Triage Automatique par Catégorie** :
-  - 🚨 **Action Requise** : Détecte les urgences, questions ouvertes, demandes de validation et échéances.
-  - ⭐ **VIP & Prioritaire** : Identifie les contacts clés et collaborateurs réguliers.
-  - 🧾 **Factures & Achats** : Isole les reçus Apple, billets de train/avion, factures avec extraction du montant et PJ PDF.
-  - 📰 **Newsletters** : Regroupe les lettres d'information avec option de désinscription rapide.
-  - ⚠️ **Bouclier Anti-Phishing** : Analyse heuristique des domaines suspects (.xyz, liens frauduleux, chantage) avec explication pédagogique du danger.
-- **Résumé Exécutif TL;DR** : Synthèse de chaque e-mail long en 2 puces clés avec extraction des actions sous forme de to-do list interactive.
-- **Réponses Intelligentes (Smart Quick Replies)** : 3 propositions de réponses contextuelles générées en temps réel (ex: "Valider", "Demander un délai", "Décliner poliment").
-- **Assistant de Rédaction & Réécriture de Ton** : Reformulation magique d'un brouillon selon le ton voulu (*Professionnel, Concis & Direct, Chaleureux, Direction Exécutive, Diplomatique*).
-- **Copilote IA Conversationnel (Tab dédié)** : Posez des questions en langage naturel :
-  - *"Qu'ai-je d'urgent à traiter aujourd'hui ?"*
-  - *"Fais-moi la synthèse de mes factures d'octobre"*
-  - *"Y a-t-il des alertes de sécurité ?"*
-
-### 4. 🚀 Options Cool Supplémentaires
-- **⏱️ Annuler l'envoi (Undo Send)** : Bannière flottante avec compte à rebours paramétrable (5s, 10s ou 30s) pour annuler un message envoyé trop vite.
-- **🔒 Sécurité Face ID** : Verrouillage biométrique des boîtes sensibles.
-- **🔍 Recherche Sémantique IA** : Tapez *"billet avion"* ou *"facture téléphone"* pour trouver instantanément le bon e-mail sans connaître les mots-clés exacts.
-- **📊 Inbox Zero Wellness** : Compteur de temps économisé grâce aux résumés d'IA.
+Ce dépôt inclut un pipeline **CI/CD GitHub Actions** pour compiler automatiquement l'application en fichier **`.ipa`** prêt à être installé sur votre iPhone.
 
 ---
 
-## 📂 Architecture du Projet
+## ✨ Points Forts
 
-```
-LiquidMail/
-├── Package.swift                    # Configuration Swift Package Manager (iOS 17+)
-├── LiquidMailApp.swift              # Point d'entrée de l'application SwiftUI
-├── Models/
-│   ├── EmailAccount.swift           # Définition des comptes & fournisseurs (iCloud, Gmail, Yahoo, ikmail)
-│   ├── AICategory.swift             # Catégories IA, Sentiments, To-do list & Smart Replies
-│   └── EmailMessage.swift           # Modèle des courriels, pièces jointes et badges de sécurité
-├── Services/
-│   ├── AISmartEngine.swift          # Cerveau IA : Triage, Résumés, Détection de Phishing, Réécriture
-│   └── MailStore.swift              # Gestionnaire d'état, comptes, Undo Send et données de démonstration
-└── UI/
-    ├── Components/
-    │   └── GlassComponents.swift    # Modificateurs Liquid Glass, Gradients ambiants, Badges, Haptics
-    └── Views/
-        ├── InboxView.swift          # Boîte unifiée, filtres de catégories, swipe actions & bannières
-        ├── EmailDetailView.swift    # Vue détaillée, résumé TL;DR, alertes de sécurité, Smart Replies
-        ├── ComposeMailView.swift    # Compositeur verre liquide avec réécriture de ton IA
-        ├── AccountsSheetView.swift  # Gestion et ajout de comptes (iCloud, Gmail, Yahoo, ikmail...)
-        ├── AIAssistantView.swift    # Copilote IA interactif pour dialoguer avec sa boîte mail
-        ├── SettingsView.swift       # Choix du thème verre liquide, délai Undo Send, Face ID
-        └── MainTabView.swift        # Dock flottant verre liquide et navigation globale
+### 1. 🪟 Design Minimaliste Liquid Glass & Icône Officielle
+- **Esthétique Épurée** : Finies les surcharges visuelles. Des cartes en verre translucide haute fidélité (`.ultraThinMaterial`), des bordures irisées ultra-fines (0.8pt) et un fond obsidienne profond à lueurs subtiles.
+- **Icône Minimaliste Officielle** : Icône en verre liquide 3D avec perle d'intelligence centrale, déclinée en 1024x1024 Retina et Display P3 dans `Assets.xcassets/AppIcon.appiconset`.
+- **Widgets Écran d'Accueil et Écran Verrouillé** : Suivez vos e-mails prioritaires et actions requises en un coup d'œil (`WidgetKit`).
+
+### 2. 🌐 Connexion Universelle (N'importe quelle adresse e-mail)
+- **Moteur d'Auto-Découverte IMAP/SMTP** : Entrez simplement `utilisateur@domaine.fr` (Orange, SFR, Free, LaPoste, OVH, Gmail, iCloud, Yahoo, Infomaniak, etc.) et les serveurs sont détectés automatiquement.
+- **Chiffrement Keychain Apple** : Tous vos identifiants sont chiffrés directement dans le Trousseau d'accès sécurisé de l'iPhone.
+
+### 3. 🧠 API IA de Triage et Résumé
+- **Modèles Supportés** : OpenAI (`gpt-4o-mini`, `gpt-4o`), Anthropic Claude (`3.5 Sonnet`), Google Gemini, Mistral AI, Ollama (serveur local) ou Apple Intelligence (On-Device).
+- **Triage Automatique** : Catégorise vos courriels (*Action Requise, VIP, Factures, Newsletters, Anti-Spam*), résume en 25 mots et génère 3 réponses contextuelles en un clic.
+
+---
+
+## 🚀 Compiler en `.ipa` Automatiquement sur GitHub
+
+Le fichier `.github/workflows/build-ipa.yml` est préconfiguré pour exécuter `xcodebuild` sur les serveurs Mac d'Apple (`macos-14`) de GitHub.
+
+### 1. Envoyer le code sur votre GitHub
+
+Dans votre terminal, exécutez ces deux commandes :
+
+```bash
+# 1. Liez votre dépôt GitHub (remplacez par votre URL de dépôt)
+git remote add origin https://github.com/VOTRE_PSEUDO/LiquidMail.git
+
+# 2. Poussez le code
+git push -u origin main
 ```
 
+### 2. Télécharger votre `.ipa`
+1. Allez sur votre dépôt GitHub dans l'onglet **Actions**.
+2. Cliquez sur le dernier workflow exécuté nommé **"Build iOS IPA (LiquidMail)"**.
+3. Dans la section **Artifacts**, téléchargez le fichier `LiquidMail-iOS-IPA` qui contient votre `LiquidMail.ipa` !
+
 ---
 
-## 📲 Comment l'exécuter dans Xcode
+## 📲 Installer le `.ipa` sur votre iPhone
 
-1. Ouvrez le dossier `LiquidMail` dans **Xcode** (sur macOS) en ouvrant `Package.swift` ou en créant un nouveau projet iOS et en y glissant les fichiers.
-2. Choisissez un simulateur (ex: **iPhone 16 Pro** sous iOS 18).
-3. Cliquez sur **Run (⌘R)**.
-4. L'application démarre immédiatement avec 4 comptes pré-configurés (iCloud, Google Workspace, Yahoo, Infomaniak ikmail) et des données de démonstration ultra-réalistes !
+Vous pouvez installer directement le fichier `LiquidMail.ipa` généré par GitHub Actions sur votre iPhone sans passer par l'App Store officiel :
+- **AltStore** : Ouvrez AltStore sur votre iPhone > Onglet *My Apps* > Touchez le `+` > Sélectionnez `LiquidMail.ipa`.
+- **Sideloadly** : Glissez `LiquidMail.ipa` dans Sideloadly sur votre Mac ou PC et entrez votre identifiant Apple.
+- **TrollStore** : Si votre iPhone est compatible, installez l'IPA en 1 seconde sans expiration de certificat.
+- **TestFlight / Compte Développeur Apple** : Via Xcode ou Transporter.
+
+---
+
+## 🖥️ Tester Sans Attendre dans le Navigateur
+Ouvrez le fichier [`preview.html`](preview.html) dans votre navigateur pour manipuler la maquette interactive iPhone 16 Pro avec le design minimaliste Liquid Glass, les widgets iOS et le panneau de test d'API IA.
